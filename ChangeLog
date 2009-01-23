@@ -1,0 +1,17 @@
+This isn't really in proper GNU ChangeLog format, it just happens to
+look that way.
+
+2008-06-10 Atul Varma <varmaa@gmail.com>
+	* Fixed the module to work with the latest SpiderMonkey (1.7)
+	  and Pyrex (0.9.8).
+	* Revamped the documentation, added doctests.
+	* Removed Pyrex as a build dependency.
+	* Made it easier to link to SpiderMonkey by using the
+	  pre-built XULRunner SDK.
+
+2003-10-05 John J Lee <jjl@pobox.com>
+	* Fixed segfault.
+	* Released 0.0.1a.
+
+2003-09-13 John J Lee <jjl@pobox.com>
+	* Functionality is there, but so is a nasty segfault. :-((

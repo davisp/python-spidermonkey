@@ -1,0 +1,15 @@
+Metadata-Version: 1.0
+Name: spidermonkey
+Version: 0.0.1a
+Summary: JavaScript / Python bridge.
+Home-page: http://wwwsearch.sourceforge.net/spidermonkey/
+Author: John J. Lee
+Author-email: jjl@pobox.com
+License: GPL
+Description: Python/JavaScript bridge module, making use of Mozilla's spidermonkey
+        JavaScript implementation.  Allows implementation of JavaScript classes,
+        objects and functions in Python, and evaluation and calling of JavaScript
+        scripts and functions respectively.  Borrows heavily from Claes Jacobssen's
+        Javascript Perl module, in turn based on Mozilla's 'PerlConnect' Perl binding.
+        
+Platform: UNKNOWN
