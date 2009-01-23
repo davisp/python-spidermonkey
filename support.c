@@ -61,7 +61,8 @@ static JSClass global_class = {
     JS_EnumerateStub, // JSEnumerateOp enumerate;
     JS_ResolveStub, // JSResolveOp resolve;
     JS_ConvertStub, // JSConvertOp convert;
-    JS_FinalizeStub // JSFinalizeOp finalize;
+    JS_FinalizeStub, // JSFinalizeOp finalize;
+    JSCLASS_NO_OPTIONAL_MEMBERS
 
     /* Optionally non-null members start here. */
     // JSGetObjectOps getObjectOps;

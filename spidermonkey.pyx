@@ -124,7 +124,9 @@ cdef extern from "jsapi.h":
         JSTYPE_BOOLEAN  # boolean
         JSTYPE_LIMIT
 
-    cdef JSType JS_TypeOfValue(JSContext* cx, jsval v)
+    cdef JSType JS_TypeOfValue(JSContext *cx, jsval v)
+    cdef JSBool JS_AddRoot(JSContext *cx, void *rp)
+    cdef JSBool JS_RemoveRoot(JSContext *cx, void *rp)
 
     cdef enum JSAccessMode:
         JSACC_PROTO = 0  # XXXbe redundant w.r.t. id
@@ -182,6 +184,8 @@ cdef extern from "jsapi.h":
         # optional and we're not using it, so I'm just setting it to a
         # void pointer. -AV
         void *reserveSlots
+
+
 
     cdef JSBool JS_PropertyStub(JSContext *cx, JSObject *obj, jsval id, jsval *vp)
     cdef JSBool JS_EnumerateStub(JSContext *cx, JSObject *obj)
@@ -801,7 +805,7 @@ cdef class ProxyFunction:
                 jsarg = JS_from_Py(self.cx.cx, NULL, arg)
                 argv[i] = jsarg
 
-            JS_CallFunctionValue(self.cx.cx, self.cx.globj, self.fun, nr_args, argv, &rval)
+            ok = JS_CallFunctionValue(self.cx.cx, self.cx.globj, self.fun, nr_args, argv, &rval)
         finally:
             free(argv)
 
@@ -811,12 +815,16 @@ cdef class ProxyFunction:
         JS_MaybeGC(self.cx.cx)
         return retval
 
+    def __dealloc__(self):
+        JS_RemoveRoot(self.cx.cx, &self.fun)
+
 cdef ProxyFunction create_proxy_function(Context cx, jsval fun):
     if JS_TypeOfValue(cx.cx, fun) != JSTYPE_FUNCTION:
         raise JSError("Value is not a function: %s" % JS_TypeOfValue(cx.cx, fun))
     cdef ProxyFunction ret
     ret = ProxyFunction(cx)
     ret.fun = fun
+    JS_AddRoot(cx.cx, &ret.fun)
     return ret
 
 cdef JSBool constructor_cb(JSContext *cx, JSObject *obj,
