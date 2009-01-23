@@ -810,7 +810,7 @@ cdef class ProxyFunction:
             free(argv)
 
         if not ok:
-            raise RuntimeError(self.cx._last_error)
+            raise JSError("Failed to execute function: %s" % self.cx._last_error)
         retval = Py_from_JS(self.cx.cx, rval)
         JS_MaybeGC(self.cx.cx)
         return retval

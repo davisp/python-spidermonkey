@@ -15,9 +15,7 @@ class context_tests(TestCase):
     def test_scope(self):
         # multiple evaluations in a Context share same scope
         cx = self.cx
-        cx.eval_script("""\
-var x = 42;
-""")
+        cx.eval_script("var x = 42;")
         self.assert_(cx.eval_script("x;") == 42)
 
 class test_conversions_to_Python(TestCase):
@@ -163,10 +161,10 @@ class test_class(TestCase):
 
     def test_construct(self):
         s = self.cx.eval_script("""\
-var s = new spam();
-s.foo(1, "blah", ["1", 2, "three"]);
-s;
-""")
+            var s = new spam();
+            s.foo(1, "blah", ["1", 2, "three"]);
+            s;
+        """)
         self.assert_(s.args.pop() == (1, "blah", ["1", 2, "three"]))
 
     def test_getsetitem(self):
@@ -212,6 +210,11 @@ class test_define_function(TestCase):
     def test_define_function(self):
         resp = self.cx.eval_script("function(val) {return val * 2;}")
         self.assertEqual(resp(2), 4)
+
+    def test_with_dict(self):
+        resp = self.cx.eval_script("function(doc) {if(doc.data) return doc.data;}")
+        self.assertEqual(resp({"data": 2}), 2)
+        self.assertEqual(resp({}), None)
 
 if __name__ == "__main__":
     unittest.main()
