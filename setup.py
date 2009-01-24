@@ -14,7 +14,7 @@ except ImportError:
         sys.stderr.write("Pyrex is required for compiliation.")
 
 arch = os.uname()[0].lower()
-jslib = {"darin": "js", "linux": "mozjs"}.get(arch)
+jslib = {"darin": "js", "linux": "mozjs"}.get(arch, "js")
 if not jslib:
     sys.stderr.write("Failed to guess what JavaScript lib you might be using.")
 
