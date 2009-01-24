@@ -37,8 +37,8 @@ Javascript Perl module, in turn based on Mozilla's 'PerlConnect' Perl binding.
             sources=["spidermonkey.c"],
             extra_compile_args=["-DXP_UNIX", "-DJS_THREADSAFE"],
             include_dirs=["/usr/include/js", "/usr/local/include/js", "/usr/include/mozjs", "/opt/local/include/js"],
-            runtime_libraries=["/usr/lib", "/usr/local/lib", "/opt/local/lib"],
-            libraries=[jslib, "pthread"]
+            library_dirs=["/usr/lib", "/usr/local/lib", "/opt/local/lib"],
+            libraries=["m", "pthread", jslib]
         )
     ]
 )
