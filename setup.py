@@ -8,10 +8,9 @@ from distutils.file_util import copy_file
 
 try:
     import Pyrex.Compiler.Main as Compiler
-    res = Compiler.compile(["spidermonkey.pyx"], timestamps=True)
+    res = Compiler.compile(["spidermonkey/spidermonkey.pyx"], timestamps=True)
 except ImportError:
-    if not os.path.exists("spidermonkey.c"):
-        sys.stderr.write("Pyrex is required for compiliation.")
+    print "Pyrex not found: Skipping source generation."
 
 arch = os.uname()[0].lower()
 jslib = {"darin": "js", "linux": "mozjs"}.get(arch, "js")
@@ -34,7 +33,7 @@ Javascript Perl module, in turn based on Mozilla's 'PerlConnect' Perl binding.
 """,
     ext_modules =  [
         Extension("spidermonkey",
-            sources=["spidermonkey.c"],
+            sources=["spidermonkey/spidermonkey.c"],
             extra_compile_args=["-DXP_UNIX", "-DJS_THREADSAFE"],
             include_dirs=["/usr/include/js", "/usr/local/include/js", "/usr/include/mozjs", "/opt/local/include/js"],
             library_dirs=["/usr/lib", "/usr/local/lib", "/opt/local/lib"],
