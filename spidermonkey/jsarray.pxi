@@ -1,7 +1,7 @@
 
 def js_is_array(Context cx, jsval v):
     cdef JSObject* obj
-    if not JSVAL_ISOBJECT(v):
+    if not JSVAL_IS_OBJECT(v):
         return False
     obj = JSVAL_TO_OBJECT(v)
     return JS_IsArrayObject(cx.cx, obj)
@@ -17,7 +17,7 @@ cdef object js2py_array(Context cx, jsval v):
     cdef list ret
     
     jsobj = JSVAL_TO_OBJECT(v)
-    nr_elems = JS_GetArrayLength(cx.cx, jsobj, &nr_elems)
+    JS_GetArrayLength(cx.cx, jsobj, &nr_elems)
     ret = [None] * nr_elems
 
     for i from 0 <= i < nr_elems:

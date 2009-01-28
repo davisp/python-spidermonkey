@@ -1,34 +1,42 @@
 
-cdef JSBool __constructor_callback__(JSContext* cx, JSObject* obj, uintN argc, jsval* argv, jsval* rval):
+cdef JSBool __constructor_callback__(JSContext* cx, JSObject* js_obj, uintN argc, jsval* argv, jsval* rval):
     cdef Context pycx
     cdef ClassAdapter adapter
-    cdef ObjectAdapter objadapter
-    cdef JSObject* instobj
+    cdef ObjectAdapter oa
+    cdef JSObject* proto
     cdef int i
     
     try:
+        if not js_context_has_data(cx):
+            raise JSError("Unknown JSContext object.")
+        
+        proto = JS_GetPrototype(cx, js_obj)
+        if proto == NULL:
+            raise JSError("Object has no prototype.")
+        
+        if not js_object_has_data(cx, proto):
+            raise JSError("Unknown constructor callback.")
+        
         pycx = js_context_fetch(cx)
-        adapter = js_object_fetch(obj)
+        adapter = js_object_fetch(cx, proto)
         
         args = []
         for i from 0 <= i < argc:
             args.append(js2py(pycx, argv[i]))
 
-        if hasattr(adaptor, "__jsinit__"):
-            py_rval = adaptor.py_class.__jsinit__(pycx, *args)
+        if hasattr(adapter.py_class, "__jsinit__"):
+            py_rval = adapter.py_class.__jsinit__(pycx, *args)
         else:
-            py_rval = adaptor.py_class(pycx, *args)
+            py_rval = adapter.py_class(*args)
 
         rval[0] = py2js(pycx, py_rval, NULL)
 
         # Register after conversion so we don't keep it around
         # if conversion fails.
         if JSVAL_IS_OBJECT(rval[0]):
-            objadapter = ObjectAdapter(pycx, adapter, None, py_rval)
-            instobj = JSVAL_TO_OBJECT(rval[0])
-            js_object_attach(instobj, <PyObject*> py_rval)
-            objadapter.js_obj = instobj
-        pycx.register(py_rval)
+            oa = ObjectAdapter(pycx, adapter, None, py_rval)
+            oa.js_obj = js_obj
+            js_object_attach(cx, js_obj, <PyObject*> oa)
         
         return JS_TRUE
     except:
@@ -40,12 +48,19 @@ cdef JSBool __resolve_global_callback__(JSContext* cx, JSObject* js_obj, jsval j
     cdef object py_obj
     cdef object key
     cdef int i
-
+    
     try:
+        if not js_context_has_data(cx):
+            raise JSError("Unknown JSContext object.")
+
         pycx = js_context_fetch(cx)
-        adapter = js_object_fetch(js_obj)
-        py_obj = adapter.obj
         key = js2py(pycx, jsv)
+                    
+        if not js_object_has_data(cx, js_obj):
+            return JS_TRUE;
+        
+        adapter = js_object_fetch(cx, js_obj)
+        py_obj = adapter.py_obj
         
         if isinstance(key, types.StringTypes) and hasattr(py_obj, key):
             # Bind to root object.
@@ -54,6 +69,7 @@ cdef JSBool __resolve_global_callback__(JSContext* cx, JSObject* js_obj, jsval j
 
         return JS_TRUE
     except:
+        traceback.print_exc()
         return report_python_error(cx)
 
 cdef JSBool __get_property_callback__(JSContext* cx, JSObject* js_obj, jsval jsv, jsval* rval):
@@ -64,25 +80,33 @@ cdef JSBool __get_property_callback__(JSContext* cx, JSObject* js_obj, jsval jsv
     cdef object attr
 
     try:
+        if not js_context_has_data(cx):
+            raise JSError("Unknown JSContext object.")
+
         pycx = js_context_fetch(cx)
-        adapter = js_object_fetch(js_obj)
-        py_obj = adapter.obj
         key = js2py(pycx, jsv)
+        
+        if not js_object_has_data(cx, js_obj):
+            return JS_TRUE
+        
+        adapter = js_object_fetch(cx, js_obj)
+        py_obj = adapter.py_obj
         
         if isinstance(key, (types.IntType, types.LongType)):
             try:
-                attr = getattr(py_obj, key)
-                rval[0] = py2js(pycx, attr, NULL)
-                pycx.register_py(attr)
+                attr = py_obj[key]
             except:
-                rval[0] = JS_VOID
-        elif isinstance(key, types.StringTypes) and hasattr(py_obj, key):
-            try:
-                attr = getattr(py_obj, key)
+                pass
+            else:
                 rval[0] = py2js(pycx, attr, NULL)
-                pycx.register_py(attr)
-            except:
-                rval[0] = JS_VOID
+        elif isinstance(key, types.StringTypes):
+            if key[:1] != "_":
+                try:
+                    attr = getattr(py_obj, key)
+                except:
+                    pass
+                else:
+                    rval[0] = py2js(pycx, attr, js_obj)
         elif key is None:
             rval[0] = JS_VOID
         else:
@@ -90,6 +114,7 @@ cdef JSBool __get_property_callback__(JSContext* cx, JSObject* js_obj, jsval jsv
             
         return JS_TRUE
     except:
+        traceback.print_exc()
         return report_python_error(cx)
 
 cdef JSBool __set_property_callback__(JSContext* cx, JSObject* js_obj, jsval jsv, jsval rval[0]):
@@ -100,23 +125,32 @@ cdef JSBool __set_property_callback__(JSContext* cx, JSObject* js_obj, jsval jsv
     cdef object val
 
     try:
+        if not js_context_has_data(cx):
+            raise JSError("Unknown JSContext object.")
+
         pycx = js_context_fetch(cx)
-        adapter = js_object_fetch(js_obj)
-        py_obj = adapter.py_obj
         key = js2py(pycx, jsv)
         value = js2py(pycx, rval[0])
+        
+        if not js_object_has_data(cx, js_obj):
+            return JS_TRUE
+        
+        adapter = js_object_fetch(cx, js_obj)
+        py_obj = adapter.py_obj
 
         if isinstance(key, (types.IntType, types.LongType)):
             py_obj[key] = value
-        elif isinstance(key, types.StringTypes) and hasattr(py_obj, key):
-            attr = getattr(py_obj, key)
-            if not callable(attr):
-                setattr(py_obj, key, value)
+        elif isinstance(key, types.StringTypes):
+            if key[:1] != "_" and hasattr(py_obj, key):
+                attr = getattr(py_obj, key)
+                if not callable(attr):
+                    setattr(py_obj, key, value)
         else:
             raise AssertionError("Invalid key: %r" % key)
 
         return JS_TRUE
     except:
+        traceback.print_exc()
         return report_python_error(cx)
 
 
@@ -125,8 +159,14 @@ cdef void __finalize_callback__(JSContext* cx, JSObject* js_obj):
     cdef ObjectAdapter py_obj
 
     try:
+        if not js_context_has_data(cx):
+            raise JSError("Unknown JSContext object.")
+        
+        if not js_object_has_data(cx, js_obj):
+            raise JSError("Unknown JSObject.")
+        
         pycx = js_context_fetch(cx)
-        py_obj = js_object_destroy(js_obj)
+        py_obj = js_object_destroy(cx, js_obj)
     except:
         report_python_error(cx)
 
@@ -142,20 +182,23 @@ cdef class ClassAdapter:
     cdef JSClass* js_class
     cdef object py_class
 
-    def __cinit__(ClassAdapter self, Context cx, ObjectAdapter parent, py_class, bind_constructur, is_global, flags):
-        cdef JSObject* obj
+    def __cinit__(ClassAdapter self, Context cx, ObjectAdapter parent, py_class, bind_constructor, is_global, flags):
+        cdef JSObject* proto
         
         self.cx = cx
         self.parent = parent
         self.py_class = py_class
         
-        name = js_classname(py_class)
+        if hasattr(py_class, "__jsname__"):
+            name = py_class.__jsname__
+        else:
+            name = js_classname(py_class)
 
         self.js_class = <JSClass*> xmalloc(sizeof(JSClass))
         self.js_class.name = <char*> xmalloc((len(name) + 1) * sizeof(char))
         strcpy(self.js_class.name, name)
 
-        self.js_class.flags = flags
+        self.js_class.flags = flags | JSCLASS_HAS_PRIVATE
         self.js_class.addProperty = JS_PropertyStub
         self.js_class.delProperty = JS_PropertyStub
         self.js_class.getProperty = __get_property_callback__
@@ -178,27 +221,17 @@ cdef class ClassAdapter:
             self.js_class.resolve = JS_ResolveStub
         
         if bind_constructor:
-            if JS_InitClass(self.cx.cx, parent.js_obj, NULL, self.js_class,
-                            __constructor_callback__, 0, NULL, NULL, NULL, NULL) == NULL: 
+            proto = JS_InitClass(self.cx.cx, parent.js_obj, NULL, self.js_class,
+                            __constructor_callback__, 0, NULL, NULL, NULL, NULL)
+            if proto == NULL:
                 raise JSError("Failed to bind Python adapter class.")
+            js_object_attach(cx.cx, proto, <PyObject*> self)
 
-        js_object_attach(obj, <PyObject*> self)
+    def __repr__(self):
+        return "<spidermonkey.ClassAdapter: %r>" % self.py_class
 
     def __dealloc__(self):
-        free(self.js_class.name)
-        free(self.js_class)
-
-    def as_value(Context self):
-        cdef JSObject* obj
-        obj = JS_GetClassObject(self.js_class)
-        return js_create_value(OBJECT_TO_JSVAL(obj))
-
-
-
-
-
-
-
-
-
-
+        if self.js_class:
+            if self.js_class.name:
+                free(self.js_class.name)
+            free(self.js_class)

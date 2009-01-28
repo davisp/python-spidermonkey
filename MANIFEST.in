@@ -1,9 +1,8 @@
 include MANIFEST.in
-include COPYING
+include LICENSE
 include README
-include ChangeLog
-include *.pyx
+include spidermonkey/*.c
+include spidermonkey/*.pyx
+include spidermonkey/*.pxi
 include setup.py
-include test.py
-include support.c
-include spidermonkey.c
+include tests/*.py

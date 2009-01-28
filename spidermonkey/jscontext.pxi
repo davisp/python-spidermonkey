@@ -1,11 +1,15 @@
 
+class JSRootObject(object):
+    pass
+
 cdef class Context:
     cdef JSContext* cx
     cdef Runtime rt
     cdef ObjectAdapter root
     cdef GC gc
     cdef object reg
-    cdef object err
+    cdef object classes
+    cdef object error
 
     def __cinit__(self, Runtime rt, root):
         self.rt = rt
@@ -17,30 +21,29 @@ cdef class Context:
             raise JSError("Failed to create Context")
 
     def __init__(Context self, Runtime rt, root):
-        cdef JSObject* obj
+        cdef ClassAdapter ca
+        cdef JSObject* js_obj
+        cdef PyObject* py_obj
 
         self.gc = GC(self)
-        self.reg = Registry()
-        self.err = None
-
         self.reg = {}
+        self.classes = {}
+        self.error = None
 
         js_context_attach(self.cx, <PyObject*> self)
 
-        if root:
-            ca = self.install_class(root.__class__, False, True)
-            self.root = ObjectAdapter(self, ca, None)
-            if not self.root:
-                raise JSError("Failed to bind global object.")
-        else:
-            obj = js_make_global_object(self.cx)
-            self.root = ObjectAdapter(self, None, None, None)
-            js_object_attach(obj, <PyObject*> None)
-            self.root.js_obj = obj
-            if not self.root:
-                raise JSError("Failed to create default global object.")
+        if not root:
+            root = JSRootObject()
+    
+        ca = self.install_class(root.__class__, False, True)
+        js_obj = JS_NewObject(self.cx, ca.js_class, NULL, NULL)
+        if js_obj == NULL:
+            raise JSError("Failed to create root object.")
+        self.root = ObjectAdapter(self, ca, None, root)
+        self.root.js_obj = js_obj
+        js_object_attach(self.cx, self.root.js_obj, <PyObject*> self.root)
         
-        if not JS_InitStandardClasses(self.cx, self.root.js_obj):
+        if not JS_InitStandardClasses(self.cx, js_obj):
             raise JSError("Failed to initialize standard classes.")
         
         JS_SetErrorReporter(self.cx, __report_error_callback__)
@@ -52,16 +55,19 @@ cdef class Context:
         """\
         Install a Python class into the JavaScript runtime.
         """
-        if not inspect.isclass(klass):
-            raise TypeError("Unable to install %r as a class." % klass)
-        if not isinteger(flags):
+        if not inspect.isclass(py_class):
+            raise TypeError("Unable to install %r as a class." % py_class)
+        if not isinstance(flags, (types.IntType, types.LongType)):
             raise TypeError("Flags is not an integer.")
 
-        c = ClassAdaptor(self, python_class, bind_constructor, is_global, flags)
-        self.classes[c.to_value()] = c
-        return c
+        if py_class in self.classes:
+            return self.classes[py_class]
+        
+        ca = ClassAdapter(self, self.root, py_class, bind_constructor, is_global, flags)
+        self.classes[py_class] = ca
+        return ca
 
-    def bind(Context self, name, obj, parent=None):
+    def bind(Context self, name, obj):
         """\
         Attach a Python object to the JavaScript runtime.
         
@@ -81,11 +87,17 @@ cdef class Context:
         if not isinstance(name, types.StringTypes):
             raise TypeError("Name must be a string.")
 
-        ca = self.install_class(obj)
+        ca = self.install_class(obj.__class__)
         jsv = py2js(self, obj, self.root.js_obj)
         if not JS_DefineProperty(self.cx, self.root.js_obj, name, jsv,
                                     __get_property_callback__, __set_property_callback__, 0):
             raise JSError("Failed to bind Python object to the global object.")
+
+    def unbind(Context self, name):
+        ret = self.execute("%s;" % name)
+        if not JS_DeleteProperty(self.cx, self.root.js_obj, name):
+            raise JSError("Failed to unbind property: %s" % name)
+        return ret
 
     def execute(Context self, object script):
         """\
@@ -97,24 +109,13 @@ cdef class Context:
                 raise TypeError("Script must be a string.")
 
             if not JS_EvaluateScript(self.cx, self.root.js_obj, script, len(script), "Python", 0, &rval):
-                raise JSError("Failed to execute script: %s" % self._error)
+                raise JSError(self.error)
         
             return js2py(self, rval)
         finally:
-            self._gc.maybe()
+            self.gc.run_maybe()
 
-    def register(Context self, object obj):
-        """\
-        Register a Python object in the context so that it doesn't
-        get garbage collected.
-        """
-        val = id(obj)
-        assert val not in self.reg, "Objected previously registered."
-        self.reg[val] = obj
-    
-    def unregister(Context self, object obj):
-        val = id(obj)
-        assert val in self.reg, "Objected not registered."
-        del self.reg[val]
+    def set_error(self, mesg):
+        self.error = mesg
     
     

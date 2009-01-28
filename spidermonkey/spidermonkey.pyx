@@ -17,6 +17,7 @@ include "jsfunction.pxi"
 
 # Type Conversions
 include "jsarray.pxi"
+include "jsbool.pxi"
 include "jsdouble.pxi"
 include "jshash.pxi"
 include "jsint.pxi"

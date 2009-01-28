@@ -27,11 +27,11 @@ cdef object js2py_hash(Context cx, jsval v):
             if not JS_IdToValue(cx.cx, (props.vector)[i], &jskey):
                 raise JSError("Failed to convert dict to JavaScript.")
         
-            if js_is_string(jskey):
+            if js_is_string(cx, jskey):
                 key = js2py_string(cx, jskey)
                 if not JS_GetProperty(cx.cx, hash, key, &jsv):
                     raise JSError("Faield to retrieve textual hash property.")
-            elif js_is_int(jskey):
+            elif js_is_int(cx, jskey):
                 key = js2py_int(cx, jskey)
                 if not JS_GetElement(cx.cx, hash, key, &jsv):
                     raise JSError("Failed to retrive numeric hash property.")

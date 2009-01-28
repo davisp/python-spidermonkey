@@ -8,6 +8,7 @@ cdef class Runtime:
             raise JSError("Failed to create JavaScript Runtime.")
 
     def __dealloc__(self):
+        sys.stderr.write("DESTROYING RUNTIME\n")
         JS_DestroyRuntime(self.rt)
 
     def create_context(self, root=None):

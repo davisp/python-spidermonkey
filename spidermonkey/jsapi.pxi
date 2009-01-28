@@ -15,6 +15,9 @@ ELSE:
     ctypedef int jsval
 ctypedef int JSBool
 
+cdef extern from "stdio.h":
+    cdef int printf(char* format, ...)
+
 cdef extern from "string.h":
     cdef char* strcpy(char* restrict, char* restrict)
 
@@ -216,6 +219,7 @@ cdef extern from "jsapi.h":
     )
     
     cdef JSClass* JS_GetClass(JSContext* cx, JSObject* obj)
+    cdef JSObject* JS_GetPrototype(JSContext* cx, JSObject* obj)
     cdef JSIdArray* JS_Enumerate(JSContext* cx, JSObject* obj)
     cdef void* JS_GetPrivate(JSContext* cx, JSObject* obj)
     cdef JSBool JS_SetPrivate(JSContext* cx, JSObject* obj, void* data)
@@ -223,6 +227,7 @@ cdef extern from "jsapi.h":
     # Property Methods
     cdef JSBool JS_GetProperty(JSContext* cx, JSObject* obj, char* name, jsval* vp)
     cdef JSBool JS_SetProperty(JSContext* cx, JSObject* obj, char* name, jsval* vp)
+    cdef JSBool JS_DeleteProperty(JSContext* cx, JSObject* obj, char* name)
 
     cdef JSBool JS_DefineProperty(
         JSContext* cx,
@@ -256,6 +261,12 @@ cdef extern from "jsapi.h":
     cdef JSBool JS_ObjectIsFunction(JSContext* cx, JSObject* obj)
     cdef JSObject* JS_GetFunctionObject(JSFunction* fun)
     cdef JSFunction* JS_ValueToFunction(JSContext* cx, jsval v)
+    
+    # Not necessarily specific to functions, but used for the undocumented
+    # reserved slots.
+    JSBool JS_GetReservedSlot(JSContext* cx, JSObject* obj, uint32 index, jsval* vp)
+    JSBool JS_SetReservedSlot(JSContext* cx, JSObject* obj, uint32 index, jsval v)
+    
     
     # Set a list of functions on an object
     cdef JSBool JS_DefineFunctions(JSContext* cx, JSObject* obj, JSFunctionSpec* fs)
@@ -306,8 +317,7 @@ cdef extern from "jsapi.h":
     cdef size_t JS_GetStringLength(JSString* str)
 
     # Double Functions
-    cdef jsdouble* JS_NewDouble(JSContext* cx, jsdouble d)
-    cdef JSBool JS_NewDoubleValue(JSContext* cx, jsdouble d, jsval* rval)
+    cdef JSBool JS_NewNumberValue(JSContext* cx, jsdouble d, jsval* rval)
 
     # IdArray Functions
     cdef JSBool JS_IdToValue(JSContext* cx, jsid id, jsval* vp)
@@ -346,12 +356,19 @@ cdef extern from "jshelpers.c":
     cdef JSObject* js_make_global_object(JSContext *cx)
 
     cdef void js_context_attach(JSContext* cx, PyObject* obj)
+    cdef JSBool js_context_has_data(JSContext* cx)
     cdef object js_context_fetch(JSContext* cx)
     cdef object js_context_destroy(JSContext* cx)
 
-    cdef void js_object_attach(JSObject* js_obj, PyObject* obj)
-    cdef object js_object_fetch(JSObject* js_obj)
-    cdef object js_object_destroy(JSObject* js_obj)
+    cdef void js_object_attach(JSContext* cx, JSObject* js_obj, PyObject* obj)
+    cdef JSBool js_object_has_data(JSContext* cx, JSObject* js_obj)
+    cdef object js_object_fetch(JSContext* cx, JSObject* js_obj)
+    cdef object js_object_destroy(JSContext* cx, JSObject* js_obj)
+
+    cdef void js_function_attach(JSContext* cx, JSObject* js_obj, PyObject* obj)
+    cdef JSBool js_function_has_data(JSContext* cx, JSObject* js_obj)
+    cdef object js_function_fetch(JSContext* cx, JSObject* js_obj)
+    cdef object js_function_destroy(JSContext* cx, JSObject* js_obj)
 
 cdef void *xmalloc(size_t size) except NULL:
     cdef void *mem
@@ -370,6 +387,18 @@ cdef class Value
 # Python -> JavaScript
 cdef class ClassAdapter
 cdef class ObjectAdapter
+cdef class FunctionAdapter
 
-class JSError(Exception): pass
+import inspect
+import sys
+import traceback
+import types
+
+class JSError(Exception):
+    def __init__(self, mesg):
+        self.mesg = mesg
+    def __str__(self):
+        return repr(self)
+    def __repr__(self):
+        return "JavaScript Error: %s" % self.mesg
 

@@ -1,0 +1,16 @@
+include jsapi.pxi
+include jsarray.pxi
+include jsbool.pxi
+include jsclass.pxi
+include jscontext.pxi
+include jsdouble.pxi
+include jserror.pxi
+include jsfunction.pxi
+include jsgc.pxi
+include jshash.pxi
+include jsint.pxi
+include jsobject.pxi
+include jsruntime.pxi
+include jsstring.pxi
+include jsvalue.pxi
+include jsvoid.pxi

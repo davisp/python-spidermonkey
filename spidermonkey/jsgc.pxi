@@ -8,7 +8,7 @@ cdef class GC:
     cdef void run(GC self):
         JS_GC(self.cx.cx)
     
-    cdef void run_mayb(GC self):
+    cdef void run_maybe(GC self):
         JS_MaybeGC(self.cx.cx)
     
     cdef void add_root(GC self, void* rp):

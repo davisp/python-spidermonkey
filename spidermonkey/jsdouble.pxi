@@ -10,6 +10,6 @@ cdef object js2py_double(Context cx, jsval jsv):
 
 cdef jsval py2js_double(Context cx, double py_obj, JSObject* parent):
     cdef jsval ret
-    if not JS_NewDoubleValue(cx.cx, py_obj, &ret):
-        raise JSError("Failed to convert double to JavaScript")
+    if not JS_NewNumberValue(cx.cx, py_obj, &ret):
+        raise JSError("Failed to convert double.")
     return ret
