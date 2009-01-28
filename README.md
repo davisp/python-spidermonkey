@@ -10,6 +10,7 @@ Installation
 
     $ git clone git://github.com/davisp/python-spidermonkey.git
     $ cd python-spidermonkey
+    $ git checkout rewrite
     $ python setup.py build
     $ nosetests
     $ sudo python setup.py develop
