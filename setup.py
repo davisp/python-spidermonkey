@@ -36,7 +36,7 @@ setup(
     description = "JavaScript / Python bridge.",
     long_description = __doc__,
     url = "http://github.com/davisp/python-spidermonkey",
-    zip_safe = False
+    zip_safe = False,
     
     classifiers = [
         'Development Status :: 3 - Alpha',
@@ -52,12 +52,6 @@ setup(
         'setuptools>=0.6c8'
     ],
 
-    install_requires = [
-        'couchdb', 
-        'Hypy',
-        'spidermonkey',
-    ],
-    
     ext_modules =  [
         Extension(
             "spidermonkey",
