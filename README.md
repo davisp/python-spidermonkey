@@ -90,5 +90,5 @@ JavaScript Functions
 Previous Authors
 ================
 
-John J. Lee
-Atul Varma
+* John J. Lee
+* Atul Varma
