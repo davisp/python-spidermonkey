@@ -8,11 +8,11 @@ class BindTest(unittest.TestCase):
             def __init__(self):
                 self.arg = Nonce()
                 self.window = self
-                self.name = "foobar"
+                self.name = u"foobar"
                 self.val = 42
             def foo(self, arg):
                 self.arg = arg
-                return "hi %s" % arg
+                return u"hi %s" % arg
         self.window = Window()
         rt = spidermonkey.Runtime()
         self.cx = rt.create_context(self.window)
@@ -23,27 +23,30 @@ class BindTest(unittest.TestCase):
             def __init__(self):
                 self.bar = 1
         f = foo()
-        self.cx.bind("spam", f)
-        self.assertEqual(self.cx.execute("spam;"), f.bar)
+        self.cx.bind(u"spam", f)
+        self.assertEqual(self.cx.execute(u"spam;"), f.bar)
 
     def test_bind_global(self):
-        self.assertEqual(self.cx.execute('name;'), self.window.name)
-        self.assertEqual(self.cx.execute('arg;'), self.window.arg)
-        self.assertEqual(self.cx.execute('window;'), self.window)
-        self.assertEqual(self.cx.execute('window.arg;'), self.window.arg)
-        self.assertEqual(self.cx.execute('foo(12);'), "hi 12")
-        self.assertEqual(self.cx.execute('arg;'), 12)
-        self.cx.execute('var spam = 13;')
-        self.assertEqual(self.cx.execute('spam;'), 13)
-        self.cx.execute('window.arg = 14;')
-        self.assertEqual(self.cx.execute('window.arg;'), 14)
+        self.assertEqual(self.cx.execute(u'name;'), self.window.name)
+        self.assertEqual(self.cx.execute(u'arg;'), self.window.arg)
+        self.assertEqual(self.cx.execute(u'window;'), self.window)
+        self.assertEqual(self.cx.execute(u'window.arg;'), self.window.arg)
+        self.assertEqual(self.cx.execute(u'foo(12);'), u"hi 12")
+        self.assertEqual(self.cx.execute(u'arg;'), 12)
+        self.cx.execute(u'var spam = 13;')
+        self.assertEqual(self.cx.execute(u'spam;'), 13)
+        self.cx.execute(u'window.arg = 14;')
+        self.assertEqual(self.cx.execute(u'window.arg;'), 14)
         self.assertEqual(self.window.arg, 14)
     
     def test_referenced(self):
         def bind(cx):
-            cx.bind("data", object())
-        self.assertRaises(spidermonkey.JSError, self.cx.execute, "data;")
+            cx.bind(u"data", object())
+        self.assertRaises(spidermonkey.JSError, self.cx.execute, u"data;")
         bind(self.cx)
-        self.assertNotEqual(self.cx.execute("data;"), None)
-        self.assertEqual(self.cx.execute("data;"), self.cx.unbind("data"))
-        self.assertRaises(spidermonkey.JSError, self.cx.execute, "data;")
+        self.assertNotEqual(self.cx.execute(u"data;"), None)
+        self.assertEqual(self.cx.execute(u"data;"), self.cx.unbind(u"data"))
+        self.assertRaises(spidermonkey.JSError, self.cx.execute, u"data;")
+        
+if __name__ == "__main__":
+    unittest.main()

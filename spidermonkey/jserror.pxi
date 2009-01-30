@@ -10,7 +10,7 @@ cdef void __report_error_callback__(JSContext* cx, char* message, JSErrorReport*
     
     try:
         if not js_context_has_data(cx):
-            sys.stderr.write("Attempting to report error for an unknown JSContext.")
+            sys.stderr.write("Attempting to report error for an unknown JSContext.\n")
             return
         pycx = js_context_fetch(cx)
         

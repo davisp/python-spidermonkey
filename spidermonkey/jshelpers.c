@@ -1,3 +1,50 @@
+JSString* py2js_jsstring_c(JSContext* cx, PyObject* str)
+{
+    PyObject* encoded = NULL;
+    char* bytes;
+    Py_ssize_t len;
+    
+    if(!PyUnicode_Check(str))
+    {
+        return NULL;
+    }
+        
+    encoded = PyUnicode_AsEncodedString(str, "utf-16", "strict");
+    if(encoded == NULL)
+    {
+        return NULL;
+    }
+        
+    if(PyString_AsStringAndSize(encoded, &bytes, &len) < 0)
+    {
+        return NULL;
+    }
+
+    if(len < 4)
+    {
+        return NULL;
+    }
+
+    // No idea why python adds FFFE to encoded UTF-16 data.
+    return JS_NewUCStringCopyN(cx, bytes+2, (len/2)-1);
+}
+
+PyObject* js2py_jsstring_c(JSString* str)
+{
+    jschar* bytes;
+    size_t len;
+        
+    if(str == NULL)
+    {
+        return NULL;
+    }
+    
+    len = JS_GetStringLength(str);
+    bytes = JS_GetStringChars(str);
+
+    return PyUnicode_Decode((const char*) bytes, (size_t) (len * 2), "utf-16", "strict");
+}
+
 void
 js_context_attach(JSContext* cx, PyObject* obj)
 {

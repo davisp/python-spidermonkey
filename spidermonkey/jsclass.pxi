@@ -24,7 +24,7 @@ cdef JSBool __constructor_callback__(JSContext* cx, JSObject* js_obj, uintN argc
         for i from 0 <= i < argc:
             args.append(js2py(pycx, argv[i]))
 
-        if hasattr(adapter.py_class, "__jsinit__"):
+        if hasattr(adapter.py_class, unicode("__jsinit__")):
             py_rval = adapter.py_class.__jsinit__(pycx, *args)
         else:
             py_rval = adapter.py_class(*args)
@@ -55,16 +55,14 @@ cdef JSBool __resolve_global_callback__(JSContext* cx, JSObject* js_obj, jsval j
 
         pycx = js_context_fetch(cx)
         key = js2py(pycx, jsv)
-                    
+
         if not js_object_has_data(cx, js_obj):
             return JS_TRUE;
-        
+                
         adapter = js_object_fetch(cx, js_obj)
         py_obj = adapter.py_obj
-        
-        if isinstance(key, types.StringTypes) and hasattr(py_obj, key):
-            # Bind to root object.
-            # Will ref the obj so it doesn't get discarded.
+                
+        if isinstance(key, types.UnicodeType) and hasattr(py_obj, key):
             pycx.bind(key, getattr(py_obj, key))
 
         return JS_TRUE
@@ -79,13 +77,14 @@ cdef JSBool __get_property_callback__(JSContext* cx, JSObject* js_obj, jsval jsv
     cdef object key
     cdef object attr
 
+
     try:
         if not js_context_has_data(cx):
             raise JSError("Unknown JSContext object.")
 
         pycx = js_context_fetch(cx)
         key = js2py(pycx, jsv)
-        
+                
         if not js_object_has_data(cx, js_obj):
             return JS_TRUE
         
@@ -99,8 +98,8 @@ cdef JSBool __get_property_callback__(JSContext* cx, JSObject* js_obj, jsval jsv
                 pass
             else:
                 rval[0] = py2js(pycx, attr, NULL)
-        elif isinstance(key, types.StringTypes):
-            if key[:1] != "_":
+        elif isinstance(key, types.UnicodeType):
+            if key[:1] != unicode("_"):
                 try:
                     attr = getattr(py_obj, key)
                 except:
@@ -131,7 +130,7 @@ cdef JSBool __set_property_callback__(JSContext* cx, JSObject* js_obj, jsval jsv
         pycx = js_context_fetch(cx)
         key = js2py(pycx, jsv)
         value = js2py(pycx, rval[0])
-        
+                
         if not js_object_has_data(cx, js_obj):
             return JS_TRUE
         
@@ -140,8 +139,8 @@ cdef JSBool __set_property_callback__(JSContext* cx, JSObject* js_obj, jsval jsv
 
         if isinstance(key, (types.IntType, types.LongType)):
             py_obj[key] = value
-        elif isinstance(key, types.StringTypes):
-            if key[:1] != "_" and hasattr(py_obj, key):
+        elif isinstance(key, types.UnicodeType):
+            if key[:1] != unicode("_") and hasattr(py_obj, key):
                 attr = getattr(py_obj, key)
                 if not callable(attr):
                     setattr(py_obj, key, value)

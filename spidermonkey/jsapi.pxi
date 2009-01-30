@@ -20,6 +20,7 @@ cdef extern from "stdio.h":
 
 cdef extern from "string.h":
     cdef char* strcpy(char* restrict, char* restrict)
+    cdef void* memcpy(void* dest, void* src, size_t num)
 
 cdef extern from "stdlib.h":
     cdef void* malloc(size_t size)
@@ -27,6 +28,9 @@ cdef extern from "stdlib.h":
 
 cdef extern from "Python.h":
     cdef struct PyObject
+    cdef void Py_DECREF(PyObject* o)
+    cdef PyObject* PyString_FromStringAndSize(char* buf, size_t length)
+    cdef int PyString_AsStringAndSize(PyObject* str, char** buf, int* length)
 
 cdef extern from "jsapi.h":
     cdef struct JSClass
@@ -225,14 +229,15 @@ cdef extern from "jsapi.h":
     cdef JSBool JS_SetPrivate(JSContext* cx, JSObject* obj, void* data)
 
     # Property Methods
-    cdef JSBool JS_GetProperty(JSContext* cx, JSObject* obj, char* name, jsval* vp)
-    cdef JSBool JS_SetProperty(JSContext* cx, JSObject* obj, char* name, jsval* vp)
-    cdef JSBool JS_DeleteProperty(JSContext* cx, JSObject* obj, char* name)
+    cdef JSBool JS_GetUCProperty(JSContext* cx, JSObject* obj, jschar* name, size_t slen, jsval* vp)
+    cdef JSBool JS_SetUCProperty(JSContext* cx, JSObject* obj, jschar* name, size_t slen, jsval* vp)
+    cdef JSBool JS_DeleteUCProperty2(JSContext* cx, JSObject* obj, jschar* name, size_t slen, jsval* vp)
 
-    cdef JSBool JS_DefineProperty(
+    cdef JSBool JS_DefineUCProperty(
         JSContext* cx,
         JSObject* obj,
-        char* name,
+        jschar* name,
+        size_t slen,
         jsval value,
         JSPropertyOp getter,
         JSPropertyOp setter,
@@ -267,12 +272,11 @@ cdef extern from "jsapi.h":
     JSBool JS_GetReservedSlot(JSContext* cx, JSObject* obj, uint32 index, jsval* vp)
     JSBool JS_SetReservedSlot(JSContext* cx, JSObject* obj, uint32 index, jsval v)
     
-    
     # Set a list of functions on an object
     cdef JSBool JS_DefineFunctions(JSContext* cx, JSObject* obj, JSFunctionSpec* fs)
     
     # Create a function property
-    cdef JSFunction* JS_DefineFunction(
+    cdef JSFunction* JS_DefineUCFunction(
         JSContext* cx,
         JSObject* obj,
         char* name,
@@ -312,8 +316,9 @@ cdef extern from "jsapi.h":
     ) except *
 
     # String Functions
-    cdef JSString* JS_NewStringCopyN(JSContext* cx, char* s, size_t n)
+    cdef JSString* JS_NewUCStringCopyN(JSContext* cx, jschar* s, size_t n)
     cdef char* JS_GetStringBytes(JSString* str)
+    cdef jschar* JS_GetStringChars(JSString* str)
     cdef size_t JS_GetStringLength(JSString* str)
 
     # Double Functions
@@ -341,10 +346,10 @@ cdef extern from "jsapi.h":
     cdef void JS_ReportError(JSContext* cx, char* format, ...)
 
     # Main Entry Functions
-    cdef JSBool JS_EvaluateScript(
+    cdef JSBool JS_EvaluateUCScript(
         JSContext* cx,
         JSObject* obj,
-        char* bytes,
+        jschar* bytes,
         uintN length,
         char* filename,
         uintN lineno,
@@ -370,12 +375,30 @@ cdef extern from "jshelpers.c":
     cdef object js_function_fetch(JSContext* cx, JSObject* js_obj)
     cdef object js_function_destroy(JSContext* cx, JSObject* js_obj)
 
-cdef void *xmalloc(size_t size) except NULL:
-    cdef void *mem
+    cdef JSString* py2js_jsstring_c(JSContext* cx, PyObject* str)
+    cdef PyObject* js2py_jsstring_c(JSString* str)
+
+cdef void* xmalloc(size_t size) except NULL:
+    cdef void* mem
     mem = malloc(size)
     if <int>mem == 0:
         raise MemoryError()
     return mem
+
+cdef JSString* py2js_jsstring(JSContext* cx, object str):
+    cdef JSString* ret
+    ret = py2js_jsstring_c(cx, <PyObject*> str)
+    return ret
+
+cdef object js2py_jsstring(JSString* str):
+    cdef PyObject* ret
+    cdef object var
+    if str == NULL:
+        raise TypeError("Unable to convert a NULL JSString.")
+    ret = js2py_jsstring_c(str)
+    if ret != NULL:
+        var = <object> ret
+    return var
 
 # JavaScript -> Python
 cdef class Context
@@ -389,6 +412,9 @@ cdef class ClassAdapter
 cdef class ObjectAdapter
 cdef class FunctionAdapter
 
+def test_utf_16_round_trip(Context cx, data):
+    return js2py_jsstring(py2js_jsstring(cx.cx, data))
+
 import inspect
 import sys
 import traceback
@@ -400,5 +426,5 @@ class JSError(Exception):
     def __str__(self):
         return repr(self)
     def __repr__(self):
-        return "JavaScript Error: %s" % self.mesg
+        return self.mesg
 
