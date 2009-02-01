@@ -168,7 +168,7 @@ js_function_destroy(JSContext* cx, JSObject* js_obj)
 static JSClass js_global_class =
 {
     "RootObjectClass",
-    0,
+    JSCLASS_GLOBAL_FLAGS,
     JS_PropertyStub,
     JS_PropertyStub,
     JS_PropertyStub,
@@ -183,5 +183,5 @@ static JSClass js_global_class =
 JSObject *
 js_make_global_object(JSContext *cx)
 {
-    return JS_NewObject(cx, &js_global_class, 0, 0);
+    return JS_NewObject(cx, &js_global_class, NULL, NULL);
 }

@@ -133,7 +133,7 @@ cdef class Context:
         if converted == NULL:
             raise TypeError("Script must be in unicode.")
         
-        data = JS_GetStringChars(converted)
+        data = JS_GetStringChars(converted) 
         length = JS_GetStringLength(converted)
         
         try:
