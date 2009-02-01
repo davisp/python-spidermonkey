@@ -57,6 +57,7 @@ setup(
     description = "JavaScript / Python bridge.",
     long_description = __doc__,
     url = "http://github.com/davisp/python-spidermonkey",
+    download_url = "http://github.com/davisp/python-spidermonkey.git",
     zip_safe = False,
     
     classifiers = [
@@ -66,7 +67,7 @@ setup(
         'Natural Language :: English',
         'Operating System :: OS Independent',
         'Programming Language :: C',
-        'Programming Lnaguage :: JavaScript',
+        'Programming Language :: JavaScript',
         'Programming Language :: Other',
         'Programming Language :: Python',
         'Topic :: Internet :: WWW/HTTP :: Browsers',
