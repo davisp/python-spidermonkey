@@ -26,7 +26,7 @@ def get_platform_config():
             "libraries": ["js"]
         },
         "freebsd": {
-            "include_dirs": ["/usr/include", "/usr/include/js", "/usr/local/include"],
+            "include_dirs": ["/usr/include", "/usr/local/include", "/usr/local/include/js"],
             "library_dirs": ["/usr/lib", "/usr/local/lib"],
             "libraries": ["js"]
         },  
@@ -36,7 +36,7 @@ def get_platform_config():
             "libraries": ["mozjs"]
         },
         "openbsd": {
-            "include_dirs": ["/usr/include", "/usr/include/js", "/usr/local/include"],
+            "include_dirs": ["/usr/include", "/usr/local/include", "/usr/local/include/js"],
             "library_dirs": ["/usr/lib", "/usr/local/lib"],
             "libraries": ["js"]
         }
