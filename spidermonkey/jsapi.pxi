@@ -1,3 +1,5 @@
+
+
 ctypedef int uint8
 ctypedef int uint16
 ctypedef int uint32
@@ -9,7 +11,7 @@ ctypedef double jsdouble
 ctypedef int jsid
 ctypedef int jsint
 ctypedef int jsuint
-IF UNAME_MACHINE == "x86_64":
+IF UNAME_MACHINE == "x86_64" or UNAME_MACHINE == "amd64":
     ctypedef long jsval
 ELSE:
     ctypedef int jsval
