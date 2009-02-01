@@ -49,7 +49,7 @@ def get_platform_config():
     return platforms[arch]
 
 setup(
-    name = "spidermonkey",
+    name = "python-spidermonkey",
     version = "0.0.2",
     license = "MIT",
     author = "Paul J. Davis",

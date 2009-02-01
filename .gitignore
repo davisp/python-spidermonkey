@@ -2,4 +2,5 @@
 *.pyc
 *.so
 build/*
-spidermonkey.egg-info/*
+dist/*
+python_spidermonkey.egg-info/*
