@@ -21,7 +21,7 @@ def get_platform_config():
     """Retrieve platform specific locatiosn for headers and libraries."""
     platforms = {
         "darwin": {
-            "include_dirs": ["/usr/include", "/opt/local/include/js"],
+            "include_dirs": ["/usr/include", "/usr/local/include", "/opt/local/include/js"],
             "library_dirs": ["/usr/lib", "/usr/local/lib", "/opt/local/lib"],
             "libraries": ["js"]
         },
@@ -36,7 +36,7 @@ def get_platform_config():
             "libraries": ["mozjs"]
         },
         "openbsd": {
-            "include_dirs": ["/usr/include/js", "/usr/local/include"],
+            "include_dirs": ["/usr/include", "/usr/include/js", "/usr/local/include"],
             "library_dirs": ["/usr/lib", "/usr/local/lib"],
             "libraries": ["js"]
         }
