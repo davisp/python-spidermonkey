@@ -15,21 +15,41 @@ try:
     import Pyrex.Compiler.Main as Compiler
     res = Compiler.compile(["spidermonkey/spidermonkey.pyx"], timestamps=True)
 except ImportError:
-    print "Pyrex not found: Skipping source generation."
+    print "Pyrex not found. Skipping source re-generation."
 
-def get_js_lib():
+def get_platform_config():
+    """Retrieve platform specific locatiosn for headers and libraries."""
+    platforms = {
+        "darwin": {
+            "include_dirs": ["/opt/local/include/js"],
+            "library_dirs": ["/opt/local/lib"],
+            "libraries": ["js"]
+        },
+        "freebsd": {
+            "include_dirs": ["/usr/include/js", "/usr/local/include"],
+            "library_dirs": ["/usr/lib"],
+            "libraries": ["js"]
+        },  
+        "linux": {
+            "include_dirs": ["/usr/include", "/usr/include/mozjs"],
+            "library_dirs": ["/usr/lib"],
+            "libraries": ["mozjs"]
+        },
+        "openbsd": {
+            "include_dirs": ["/usr/include/js", "/usr/local/include"],
+            "library_dirs": ["/usr/lib"],
+            "libraries": ["js"]
+        }
+    }
     arch = os.uname()[0].lower()
-    jslib = {
-        "darwin": "js",
-        "linux": "mozjs"
-    }.get(arch, None)
-    if not jslib:
-        print "Failed to guess what JavaScript lib you might be using."
-    return jslib
+    if arch not in platforms:
+        print "Failed to find a platform configuration."
+        exit(-1)
+    return platforms[arch]
 
 setup(
     name = "spidermonkey",
-    version = "0.1",
+    version = "0.0.2",
     license = "MIT",
     author = "Paul J. Davis",
     author_email = "paul.joseph.davis@gmail.com",
@@ -42,12 +62,17 @@ setup(
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: MIT License',
+        'Natural Language :: English',
         'Operating System :: OS Independent',
-        'Programming Language :: Python',
+        'Programming Language :: C',
         'Programming Lnaguage :: JavaScript',
+        'Programming Language :: Other',
+        'Programming Language :: Python',
+        'Topic :: Internet :: WWW/HTTP :: Browsers',
+        'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-
+    
     setup_requires = [
         'setuptools>=0.6c8'
     ],
@@ -57,9 +82,7 @@ setup(
             "spidermonkey",
             sources=["spidermonkey/spidermonkey.c"],
             extra_compile_args=["-DXP_UNIX", "-DJS_THREADSAFE"],
-            include_dirs=["/usr/include/js", "/usr/local/include/js", "/usr/include/mozjs", "/opt/local/include/js"],
-            library_dirs=["/usr/lib", "/usr/local/lib", "/opt/local/lib"],
-            libraries=["m", "pthread", get_js_lib()]
+            **get_platform_config()
         )
     ]
 )

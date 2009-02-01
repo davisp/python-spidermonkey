@@ -16,8 +16,6 @@ Installation
 
 There are quite a few compiler warnings about casting pointers that I haven't gone back and fixed yet, so kindly ignore them. Or get irritated enough to fix them for me. :D
 
-I recommend using develop for now so you can track progress. I'll be working on getting unicode support up and running in the near future.
-
 Basics
 ------
 
