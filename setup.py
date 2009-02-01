@@ -7,6 +7,7 @@ Javascript Perl module, in turn based on Mozilla's 'PerlConnect' Perl binding.
 """,
 
 import os
+import sys
 import ez_setup
 ez_setup.use_setuptools()
 from setuptools import setup, Extension
@@ -15,7 +16,7 @@ try:
     import Pyrex.Compiler.Main as Compiler
     res = Compiler.compile(["spidermonkey/spidermonkey.pyx"], timestamps=True)
 except ImportError:
-    print "Pyrex not found. Skipping source re-generation."
+    print >>sys.stderr, "Pyrex not found. Skipping source re-generation."
 
 def get_platform_config():
     """Retrieve platform specific locatiosn for headers and libraries."""
@@ -74,7 +75,8 @@ setup(
     ],
     
     setup_requires = [
-        'setuptools>=0.6c8'
+        'setuptools>=0.6c8',
+        'pyrex>=0.9.8.5'
     ],
 
     ext_modules =  [
@@ -84,5 +86,8 @@ setup(
             extra_compile_args=["-DXP_UNIX", "-DJS_THREADSAFE"],
             **get_platform_config()
         )
-    ]
+    ],
+
+    test_suite = 'nose.collector',
+
 )
