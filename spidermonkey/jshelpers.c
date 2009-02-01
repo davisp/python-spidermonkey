@@ -88,8 +88,19 @@ js_object_attach(JSContext* cx, JSObject* js_obj, PyObject* py_obj)
 JSBool
 js_object_has_data(JSContext* cx, JSObject* js_obj)
 {
-    void* data = JS_GetPrivate(cx, js_obj);
-    if(data == NULL)
+    JSClass* class = JS_GetClass(cx, js_obj);
+    
+    if(class == NULL)
+    {
+        return JS_FALSE;
+    }
+    
+    if(!(class->flags & JSCLASS_HAS_PRIVATE))
+    {
+        return JS_FALSE;
+    }
+    
+    if(JS_GetPrivate(cx, js_obj) == NULL)
     {
         return JS_FALSE;
     }
