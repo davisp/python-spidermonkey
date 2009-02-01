@@ -21,23 +21,23 @@ def get_platform_config():
     """Retrieve platform specific locatiosn for headers and libraries."""
     platforms = {
         "darwin": {
-            "include_dirs": ["/opt/local/include/js"],
-            "library_dirs": ["/opt/local/lib"],
+            "include_dirs": ["/usr/include", "/opt/local/include/js"],
+            "library_dirs": ["/usr/lib", "/usr/local/lib", "/opt/local/lib"],
             "libraries": ["js"]
         },
         "freebsd": {
-            "include_dirs": ["/usr/include/js", "/usr/local/include"],
-            "library_dirs": ["/usr/lib"],
+            "include_dirs": ["/usr/include", "/usr/include/js", "/usr/local/include"],
+            "library_dirs": ["/usr/lib", "/usr/local/lib"],
             "libraries": ["js"]
         },  
         "linux": {
-            "include_dirs": ["/usr/include", "/usr/include/mozjs"],
-            "library_dirs": ["/usr/lib"],
+            "include_dirs": ["/usr/include", "/usr/include/mozjs", "/usr/local/include"],
+            "library_dirs": ["/usr/lib", "/usr/local/lib"],
             "libraries": ["mozjs"]
         },
         "openbsd": {
             "include_dirs": ["/usr/include/js", "/usr/local/include"],
-            "library_dirs": ["/usr/lib"],
+            "library_dirs": ["/usr/lib", "/usr/local/lib"],
             "libraries": ["js"]
         }
     }
