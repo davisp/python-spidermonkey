@@ -107,7 +107,7 @@ cdef JSBool __get_property_callback__(JSContext* cx, JSObject* js_obj, jsval jsv
                 else:
                     rval[0] = py2js(pycx, attr, js_obj)
         elif key is None:
-            rval[0] = JS_VOID
+            rval[0] = JSVAL_VOID
         else:
             raise AssertionError("Invalid key: %r" % key)
             
