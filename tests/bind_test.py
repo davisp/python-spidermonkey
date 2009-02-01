@@ -18,13 +18,13 @@ class BindTest(unittest.TestCase):
         self.cx = rt.create_context(self.window)
         self.cx.install_class(Nonce)
 
-    def bind_attribute(self):
+    def test_bind_attribute(self):
         class foo:
             def __init__(self):
                 self.bar = 1
         f = foo()
         self.cx.bind(u"spam", f)
-        self.assertEqual(self.cx.execute(u"spam;"), f.bar)
+        self.assertEqual(self.cx.execute(u"spam;").bar, f.bar)
 
     def test_bind_global(self):
         self.assertEqual(self.cx.execute(u'name;'), self.window.name)

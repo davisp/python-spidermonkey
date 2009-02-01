@@ -5,6 +5,7 @@ class ToPythonTest(unittest.TestCase):
     def setUp(self):
         rt = spidermonkey.Runtime()
         self.cx = rt.create_context()
+
     def test_primitive_types(self):
         self.assertEqual(self.cx.execute(u"42;"), 42)
         self.assertEqual(self.cx.execute(u"42.5;"), 42.5)
