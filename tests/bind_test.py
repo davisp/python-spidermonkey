@@ -26,6 +26,12 @@ class BindTest(unittest.TestCase):
         self.cx.bind(u"spam", f)
         self.assertEqual(self.cx.execute(u"spam;").bar, f.bar)
 
+    def test_bind_function(self):
+        def func():
+            return u"foo"
+        self.cx.bind(u"func", func)
+        self.assertEqual(self.cx.execute(u'func();'), u"foo")
+
     def test_bind_global(self):
         self.assertEqual(self.cx.execute(u'name;'), self.window.name)
         self.assertEqual(self.cx.execute(u'arg;'), self.window.arg)

@@ -387,9 +387,23 @@ cdef void* xmalloc(size_t size) except NULL:
         raise MemoryError()
     return mem
 
-cdef JSString* py2js_jsstring(JSContext* cx, object str):
-    cdef JSString* ret
-    ret = py2js_jsstring_c(cx, <PyObject*> str)
+cdef class PyJSString:
+    cdef JSString* data
+    
+    cdef jschar* chars(PyJSString self):
+        return JS_GetStringChars(self.data)
+    
+    cdef size_t length(PyJSString self):
+        return JS_GetStringLength(self.data)
+
+cdef PyJSString py2js_jsstring(JSContext* cx, object str):
+    cdef PyJSString ret
+    cdef JSString* js_str
+    js_str = py2js_jsstring_c(cx, <PyObject*> str)
+    if js_str == NULL:
+        raise UnicodeError("Failed to encode Python string as UTF-16")
+    ret = PyJSString()
+    ret.data = js_str
     return ret
 
 cdef object js2py_jsstring(JSString* str):
@@ -415,7 +429,9 @@ cdef class ObjectAdapter
 cdef class FunctionAdapter
 
 def test_utf_16_round_trip(Context cx, data):
-    return js2py_jsstring(py2js_jsstring(cx.cx, data))
+    cdef PyJSString conv
+    conv = py2js_jsstring(cx.cx, data)
+    return js2py_jsstring(conv.data)
 
 import inspect
 import sys

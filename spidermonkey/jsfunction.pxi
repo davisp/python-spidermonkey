@@ -26,6 +26,7 @@ cdef class Function:
 
         retval = js2py(self.cx, rval)
         self.cx.gc.run_maybe()
+                
         return retval
 
     def __dealloc__(Function self):
@@ -72,7 +73,7 @@ cdef JSBool __bound_method_callback__(JSContext* cx, JSObject* obj, uintN argc, 
 
         py_rval = method(*args)
         rval[0] = py2js(pycx, py_rval, obj)
-
+        
         return JS_TRUE
     except:
         return report_python_error(cx)

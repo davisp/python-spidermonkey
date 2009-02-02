@@ -83,38 +83,24 @@ cdef class Context:
         """
         cdef ClassAdapter ca
         cdef jsval jsv
-        cdef JSString* converted
-        cdef jschar* data
-        cdef size_t length
+        cdef PyJSString js_str
 
-        converted = py2js_jsstring(self.cx, name)
-        if converted == NULL:
-            raise TypeError("Name to bind must be in unicode.")
-
-        data = JS_GetStringChars(converted)
-        length = JS_GetStringLength(converted)
+        js_str = py2js_jsstring(self.cx, name)
 
         ca = self.install_class(obj.__class__)
         jsv = py2js(self, obj, self.root.js_obj)
-        if not JS_DefineUCProperty(self.cx, self.root.js_obj, data, length, jsv,
+        if not JS_DefineUCProperty(self.cx, self.root.js_obj, js_str.chars(), js_str.length(), jsv,
                                     __get_property_callback__, __set_property_callback__, 0):
             raise JSError("Failed to bind Python object to the global object.")
 
     def unbind(Context self, name):
         cdef jsval rval
-        cdef JSString* converted
-        cdef jschar* data
-        cdef size_t length
+        cdef PyJSString js_str
 
-        converted = py2js_jsstring(self.cx, name)
-        if converted == NULL:
-            raise TypeError("Name to unbind must be in unicode.")
-
-        data = JS_GetStringChars(converted)
-        length = JS_GetStringLength(converted)
+        js_str = py2js_jsstring(self.cx, name)
         
         ret = self.execute(name + unicode(";")) # yeah yeah, I know.
-        if not JS_DeleteUCProperty2(self.cx, self.root.js_obj, data, length, &rval):
+        if not JS_DeleteUCProperty2(self.cx, self.root.js_obj, js_str.chars(), js_str.length(), &rval):
             raise JSError("Failed to unbind property: %s" % name)
         # This always returns True for some reason
         #return js2py(self, rval)
@@ -125,19 +111,12 @@ cdef class Context:
         Execute JavaScript source code.
         """
         cdef jsval rval
-        cdef JSString* converted
-        cdef jschar* data
-        cdef size_t length
+        cdef PyJSString js_str
 
-        converted = py2js_jsstring(self.cx, script)
-        if converted == NULL:
-            raise TypeError("Script must be in unicode.")
-        
-        data = JS_GetStringChars(converted) 
-        length = JS_GetStringLength(converted)
+        js_str = py2js_jsstring(self.cx, script)
         
         try:
-            if not JS_EvaluateUCScript(self.cx, self.root.js_obj, data, length, "Python", 0, &rval):
+            if not JS_EvaluateUCScript(self.cx, self.root.js_obj, js_str.chars(), js_str.length(), "Python", 0, &rval):
                 raise JSError(self.error)
             return js2py(self, rval)
         finally:
