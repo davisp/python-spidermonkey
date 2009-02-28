@@ -7,6 +7,7 @@ Javascript Perl module, in turn based on Mozilla's 'PerlConnect' Perl binding.
 """,
 
 import os
+import subprocess as sp
 import sys
 import ez_setup
 ez_setup.use_setuptools()
@@ -20,27 +21,38 @@ def find_sources(extensions=[".c", ".cpp"]):
                 ret.append(os.path.join(dpath, fname))
     return ret
 
+def nspr_config():
+    pipe = sp.Popen("nspr-config --cflags --libs",
+                        shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    (stdout, stderr) = pipe.communicate()
+    if pipe.wait() != 0:
+        raise RuntimeError("Failed to get nspr config.")
+    bits = stdout.split()
+    ret = {"include_dirs": [], "library_dirs": [], "libraries": []}
+    prfx = {"-I": "include_dirs", "-L": "library_dirs", "-l": "libraries"}
+    for b in bits:
+        ret[prfx[b[:2]]].append(b[2:])
+    return ret
+
 def platform_config():
     sysname = os.uname()[0]
     machine = os.uname()[-1]
-    
-    configs = {
-        "Darwin": {
-            "extra_compile_args": [
-                "-DXP_UNIX",
-                "-DJS_THREADSAFE",
-                "-DPOSIX_SOURCE",
-                "-D_BSD_SOURCE",
-                "-Wno-strict-prototypes"
-            ],
-            "include_dirs": [
-                "spidermonkey/%s-%s" % (sysname, machine),
-                "/opt/local/include/nspr"
-            ],
-            "libraries": ["nspr4"]
-        }
-    }
-    return configs[os.uname()[0]]
+   
+    config = nspr_config()
+    config["include_dirs"].append("spidermonkey/%s-%s" % (sysname, machine))
+    config["extra_compile_args"] = [
+        "-DJS_THREADSAFE",
+        "-DPOSIX_SOURCE",
+        "-D_BSD_SOURCE",
+        "-Wno-strict-prototypes"
+    ]
+
+    if sysname in ["Darwin", "Linux"]:
+        config["extra_compile_args"].append("-DXP_UNIX")
+    else:
+        raise RuntimeError("Unknown system name: %s" % sysname)
+
+    return config
 
 setup(
     name = "python-spidermonkey",

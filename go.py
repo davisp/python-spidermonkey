@@ -1,6 +1,10 @@
+import glob
 import sys
 import traceback
-sys.path.insert(0, "./build/lib.macosx-10.4-i386-2.5/")
+
+libdirs = glob.glob("./build/lib*")
+if len(libdirs) > 0:
+    sys.path.insert(0, libdirs[0])
 
 def raises(fn, *args, **kwargs):
     try:
