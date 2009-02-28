@@ -11,11 +11,13 @@ def raises(fn, *args, **kwargs):
         fn(*args, **kwargs)
     except:
         pass
+    else:
+        raise RuntimeError("Function did not throw.")
 
 import spidermonkey
 r = spidermonkey.Runtime()
 raises(spidermonkey.Context)
 raises(spidermonkey.Context, "foo")
 
-print "Creating context."
 cx = r.new_context()
+cx.execute("var f = 4; f * f;")

@@ -1,30 +1,26 @@
 
-#include <Python.h>
+#include "spidermonkey.h"
 
-#include "context.h"
-#include "runtime.h"
+#ifndef PyMODINIT_FUNC
+#define PyMODINIT_FUNC void
+#endif
+
+PyTypeObject* RuntimeType = NULL;
+PyTypeObject* ContextType = NULL;
+PyTypeObject* ClassType = NULL;
 
 static PyMethodDef spidermonkey_methods[] = {
     {NULL}
 };
 
-#ifndef PyMODINIT_FUNC
-#define PyMODINIT_FUNC void
-#endif
 PyMODINIT_FUNC
 initspidermonkey(void)
 {
     PyObject* m;
     
-    if(PyType_Ready(&RuntimeType) < 0)
-    {
-        return;
-    }
-   
-    if(PyType_Ready(&ContextType) < 0)
-    {
-        return;
-    }
+    if(PyType_Ready(&_RuntimeType) < 0) return;
+    if(PyType_Ready(&_ContextType) < 0) return;
+    if(PyType_Ready(&_ClassType) < 0) return;
     
     m = Py_InitModule3("spidermonkey", spidermonkey_methods,
             "The Python-Spidermonkey bridge.");
@@ -34,9 +30,15 @@ initspidermonkey(void)
         return;
     }
 
-    Py_INCREF(&RuntimeType);
-    PyModule_AddObject(m, "Runtime", (PyObject*) &RuntimeType);
+    RuntimeType = &_RuntimeType;
+    Py_INCREF(RuntimeType);
+    PyModule_AddObject(m, "Runtime", (PyObject*) RuntimeType);
 
-    Py_INCREF(&ContextType);
-    PyModule_AddObject(m, "Context", (PyObject*) &ContextType);
+    ContextType = &_ContextType;
+    Py_INCREF(ContextType);
+    PyModule_AddObject(m, "Context", (PyObject*) ContextType);
+
+    ClassType = &_ClassType;
+    Py_INCREF(ClassType);
+    PyModule_AddObject(m, "Class", (PyObject*) ClassType);
 }
