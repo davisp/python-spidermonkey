@@ -12,41 +12,35 @@ import ez_setup
 ez_setup.use_setuptools()
 from setuptools import setup, Extension
 
-try:
-    import Pyrex.Compiler.Main as Compiler
-    res = Compiler.compile(["spidermonkey/spidermonkey.pyx"], timestamps=True)
-except ImportError:
-    print >>sys.stderr, "Pyrex not found. Skipping source re-generation."
+def find_sources(extensions=[".c", ".cpp"]):
+    ret = []
+    for dpath, dnames, fnames in os.walk("./spidermonkey"):
+        for fname in fnames:
+            if os.path.splitext(fname)[1] in extensions:
+                ret.append(os.path.join(dpath, fname))
+    return ret
 
-def get_platform_config():
-    """Retrieve platform specific locatiosn for headers and libraries."""
-    platforms = {
-        "darwin": {
-            "include_dirs": ["/usr/include", "/usr/local/include", "/opt/local/include/js"],
-            "library_dirs": ["/usr/lib", "/usr/local/lib", "/opt/local/lib"],
-            "libraries": ["js"]
-        },
-        "freebsd": {
-            "include_dirs": ["/usr/include", "/usr/local/include", "/usr/local/include/js"],
-            "library_dirs": ["/usr/lib", "/usr/local/lib"],
-            "libraries": ["js"]
-        },  
-        "linux": {
-            "include_dirs": ["/usr/include", "/usr/include/mozjs", "/usr/local/include"],
-            "library_dirs": ["/usr/lib", "/usr/local/lib"],
-            "libraries": ["mozjs"]
-        },
-        "openbsd": {
-            "include_dirs": ["/usr/include", "/usr/local/include", "/usr/local/include/js"],
-            "library_dirs": ["/usr/lib", "/usr/local/lib"],
-            "libraries": ["js"]
+def platform_config():
+    sysname = os.uname()[0]
+    machine = os.uname()[-1]
+    
+    configs = {
+        "Darwin": {
+            "extra_compile_args": [
+                "-DXP_UNIX",
+                "-DJS_THREADSAFE",
+                "-DPOSIX_SOURCE",
+                "-D_BSD_SOURCE",
+                "-Wno-strict-prototypes"
+            ],
+            "include_dirs": [
+                "spidermonkey/%s-%s" % (sysname, machine),
+                "/opt/local/include/nspr"
+            ],
+            "libraries": ["nspr4"]
         }
     }
-    arch = os.uname()[0].lower()
-    if arch not in platforms:
-        print "Failed to find a platform configuration."
-        exit(-1)
-    return platforms[arch]
+    return configs[os.uname()[0]]
 
 setup(
     name = "python-spidermonkey",
@@ -83,9 +77,8 @@ setup(
     ext_modules =  [
         Extension(
             "spidermonkey",
-            sources=["spidermonkey/spidermonkey.c"],
-            extra_compile_args=["-DXP_UNIX", "-DJS_THREADSAFE"],
-            **get_platform_config()
+            sources=find_sources(),
+            **platform_config()
         )
     ],
 

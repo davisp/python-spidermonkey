@@ -3,4 +3,5 @@
 *.so
 build/*
 dist/*
+tmp/*
 python_spidermonkey.egg-info/*
