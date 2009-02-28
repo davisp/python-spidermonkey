@@ -19,6 +19,12 @@ Runtime_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     return (PyObject*) self;
 }
 
+int
+Runtime_init(Runtime* self, PyObject* args, PyObject* kwargs)
+{
+    return 0;
+}
+
 void
 Runtime_dealloc(Runtime* self)
 {
@@ -26,11 +32,5 @@ Runtime_dealloc(Runtime* self)
     {
         JS_DestroyRuntime(self->rt);
     }
-}
-
-int
-Runtime_init(Runtime* self, PyObject* args, PyObject* kwargs)
-{
-    return 0;
 }
 
