@@ -8,7 +8,10 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     Runtime* runtime = NULL;
     PyObject* rt = NULL;
     PyObject* root = NULL;
-
+    PyObject* f = NULL;
+    
+    fprintf(stderr, "NEW CONTEXT!\n");
+    
     static char *kwlist[] = {"rt", "root", NULL};
 
     if(!PyArg_ParseTuple(args, "O", &rt))
@@ -22,11 +25,21 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
         return NULL;
     }
 
+    f = PyObject_Type(rt);
+    if(f != NULL)
+    {
+        PyObject_Print(f, stderr, 0);
+        Py_DECREF(f);
+    }
+    
     if(!PyObject_TypeCheck(rt, &RuntimeType))
     {
+        PyObject_Print(args, stderr, 0);
         PyErr_SetString(PyExc_TypeError, "Invalid Runtime object.");
         return NULL;
     }
+   
+    fprintf(stderr, "For real\n");
     
     if(!PyArg_ParseTupleAndKeywords(args, kwargs, "|O", kwlist, &root))
     {

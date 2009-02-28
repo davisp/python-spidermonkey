@@ -6,9 +6,12 @@ def raises(fn, *args, **kwargs):
     try:
         fn(*args, **kwargs)
     except:
-        traceback.print_exc()
+        pass
 
 import spidermonkey
 r = spidermonkey.Runtime()
 raises(spidermonkey.Context)
 raises(spidermonkey.Context, "foo")
+
+print "Creating context."
+cx = r.new_context()

@@ -11,16 +11,22 @@ typedef struct {
     JSRuntime* rt;
 } Runtime;
 
-PyObject*
-    Runtime_new(PyTypeObject* type, PyObject* args, PyObject* kwargs);
+PyObject* Runtime_new(PyTypeObject* type, PyObject* args, PyObject* kwargs);
 int Runtime_init(Runtime* self, PyObject* args, PyObject* kwargs);
 void Runtime_dealloc(Runtime* self);
+PyObject* Runtime_new_context(Runtime* slef, PyObject* args, PyObject* kwargs);
 
 static PyMemberDef Runtime_members[] = {
     {NULL}
 };
 
 static PyMethodDef Runtime_methods[] = {
+    {
+        "new_context",
+        (PyCFunction)Runtime_new_context,
+        METH_VARARGS | METH_KEYWORDS,
+        "Create a new JavaScript Context."
+    },
     {NULL}
 };
 
