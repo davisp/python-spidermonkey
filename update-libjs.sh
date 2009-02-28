@@ -2,7 +2,7 @@
 
 URL=http://ftp.mozilla.org/pub/mozilla.org/js/js-1.7.0.tar.gz
 
-CFG=spidermonkey/`uname -s`-`uname -p`
+CFG=spidermonkey/`uname -s`-`uname -m`
 DEST=spidermonkey/libjs
 CWD=`pwd`
 TMP=tmp
