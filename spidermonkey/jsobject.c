@@ -1,7 +1,7 @@
 #include "spidermonkey.h"
 
 PyObject*
-js2py_object(Context* cx, jsval val)
+make_object(PyTypeObject* type, Context* cx, jsval val)
 {
     JSObject* obj = NULL;
     PyObject* tpl = NULL;
@@ -12,15 +12,15 @@ js2py_object(Context* cx, jsval val)
     tpl = Py_BuildValue("(O)", cx);
     if(tpl == NULL)
     {
-        JS_RemoveRoot(cx->cx, &obj);
         return NULL;
     }
     
-    ret = (Object*) PyObject_CallObject((PyObject*) ObjectType, tpl);
+    ret = (Object*) PyObject_CallObject((PyObject*) type, tpl);
     if(ret != NULL)
     {
-        ret->jsobj = obj;
-        if(!JS_AddRoot(cx->cx, &(ret->jsobj)))
+        ret->val = val;
+        ret->obj = obj;
+        if(!JS_AddRoot(cx->cx, &(ret->val)))
         {
             Py_DECREF(ret);
             PyErr_SetString(PyExc_RuntimeError, "Failed to set GC root.");
@@ -31,6 +31,12 @@ js2py_object(Context* cx, jsval val)
     Py_DECREF(tpl);
     
     return (PyObject*) ret;
+}
+
+PyObject*
+js2py_object(Context* cx, jsval val)
+{
+    return make_object(ObjectType, cx, val);
 }
 
 PyObject*
@@ -49,7 +55,8 @@ Object_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     {
         Py_INCREF(cx);
         self->cx = cx;
-        self->jsobj = NULL;
+        self->val = JSVAL_VOID;
+        self->obj = NULL;
     }
 
     return (PyObject*) self;
@@ -64,43 +71,103 @@ Object_init(Object* self, PyObject* args, PyObject* kwargs)
 void
 Object_dealloc(Object* self)
 {
-    if(self->jsobj != NULL)
+    if(self->val != JSVAL_VOID)
     {
-        JS_RemoveRoot(self->cx->cx, &(self->jsobj));
+        JS_RemoveRoot(self->cx->cx, &(self->val));
     }
    
     Py_XDECREF(self->cx);
 }
 
 PyObject*
+Object_repr(Object* self)
+{
+    jsval val;
+    JSString* repr = NULL;
+    jschar* rchars = NULL;
+    size_t rlen;
+    
+    val = OBJECT_TO_JSVAL(self->obj);
+    repr = JS_ValueToString(self->cx->cx, val);
+    if(repr == NULL)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to convert array.");
+        return NULL;
+    }
+
+    rchars = JS_GetStringChars(repr);
+    rlen = JS_GetStringLength(repr);
+
+    return PyUnicode_Decode((const char*) rchars, rlen*2, "utf-16", "strict");
+}
+
+PyObject*
 Object_getattro(Object* self, PyObject* key)
 {
     jsval pval;
+    JSType ptype;
     JSString* pobj;
     jschar* pchars;
     size_t plen;
-    JSBool status = JS_FALSE;
     jsval rval;
+    const char* typename;
 
     pval = py2js(self->cx, key);
     if(pval == JSVAL_VOID) return NULL;
-
-    if(JSVAL_IS_STRING(pval))
+    ptype = JS_TypeOfValue(self->cx->cx, pval);
+    
+    if(ptype != JSTYPE_STRING)
     {
-        pobj = JSVAL_TO_STRING(pval);
-        pchars = JS_GetStringChars(pobj);
-        plen = JS_GetStringLength(pobj);
-        status = JS_GetUCProperty(self->cx->cx, self->jsobj,
-                                            pchars, plen, &rval);
+        typename = JS_GetTypeName(self->cx->cx, ptype);
+        return PyErr_Format(PyExc_TypeError, "Invalid type: %s", typename);
     }
-
-    if(!status)
+    
+    pobj = JSVAL_TO_STRING(pval);
+    pchars = JS_GetStringChars(pobj);
+    plen = JS_GetStringLength(pobj);
+    if(!JS_GetUCProperty(self->cx->cx, self->obj, pchars, plen, &rval))
     {
         PyErr_SetString(PyExc_AttributeError, "Failed to get property.");
         return NULL;
     }
 
-    return js2py(self->cx, rval);
+    return js2py_with_parent(self->cx, rval, self->val);
+}
+
+int
+Object_setattro(Object* self, PyObject* key, PyObject* val)
+{
+    jsval pval;
+    jsval vval;
+    JSType ptype;
+    JSString* pobj;
+    jschar* pchars;
+    size_t plen;
+    const char* typename;
+    
+    pval = py2js(self->cx, key);
+    if(pval == JSVAL_VOID) return -1;
+    ptype = JS_TypeOfValue(self->cx->cx, pval);
+
+    if(ptype != JSTYPE_STRING)
+    {
+        typename = JS_GetTypeName(self->cx->cx, ptype);
+        PyErr_Format(PyExc_TypeError, "Invalid type: %s", typename);
+        return -1;
+    }
+
+    vval = py2js(self->cx, val);
+    
+    pobj = JSVAL_TO_STRING(pval);
+    pchars = JS_GetStringChars(pobj);
+    plen = JS_GetStringLength(pobj);
+    if(!JS_SetUCProperty(self->cx->cx, self->obj, pchars, plen, &vval))
+    {
+        PyErr_SetString(PyExc_AttributeError, "Failed to set property.");
+        return -1;
+    }
+
+    return 0;
 }
 
 static PyMemberDef Object_members[] = {
@@ -122,7 +189,7 @@ PyTypeObject _ObjectType = {
     0,                                          /*tp_getattr*/
     0,                                          /*tp_setattr*/
     0,                                          /*tp_compare*/
-    0,                                          /*tp_repr*/
+    (reprfunc)Object_repr,                      /*tp_repr*/
     0,                                          /*tp_as_number*/
     0,                                          /*tp_as_sequence*/
     0,                                          /*tp_as_mapping*/
@@ -130,7 +197,7 @@ PyTypeObject _ObjectType = {
     0,                                          /*tp_call*/
     0,                                          /*tp_str*/
     (getattrofunc)Object_getattro,              /*tp_getattro*/
-    0,                                          /*tp_setattro*/
+    (setattrofunc)Object_setattro,              /*tp_setattro*/
     0,                                          /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /*tp_flags*/
     "JavaScript Object",                        /*tp_doc*/

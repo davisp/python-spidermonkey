@@ -14,7 +14,10 @@
 #include "integer.h"
 #include "double.h"
 #include "function.h"
+
 #include "jsobject.h"
+#include "jsarray.h"
+#include "jsfunction.h"
 
 #include "convert.h"
 #include "error.h"
@@ -23,5 +26,7 @@ extern PyTypeObject* RuntimeType;
 extern PyTypeObject* ContextType;
 extern PyTypeObject* ClassType;
 extern PyTypeObject* ObjectType;
+extern PyTypeObject* ArrayType;
+extern PyTypeObject* FunctionType;
 
 #endif

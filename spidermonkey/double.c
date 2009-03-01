@@ -3,7 +3,16 @@
 jsval
 py2js_double(Context* cx, PyObject* obj)
 {
-    return JSVAL_VOID;
+    jsval rval;
+    double pyval = PyFloat_AsDouble(obj);
+    
+    if(!JS_NewNumberValue(cx->cx, pyval, &rval))
+    {
+        PyErr_SetString(PyExc_ValueError, "Failed to convert number.");
+        return JSVAL_VOID;
+    }
+
+    return rval;
 }
 
 PyObject*

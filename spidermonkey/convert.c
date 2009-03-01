@@ -35,6 +35,12 @@ py2js(Context* cx, PyObject* obj)
 PyObject*
 js2py(Context* cx, jsval val)
 {
+    return js2py_with_parent(cx, val, JSVAL_NULL);
+}
+
+PyObject*
+js2py_with_parent(Context* cx, jsval val, jsval parent)
+{
     JSType vtype = JS_TypeOfValue(cx->cx, val);
 
     if(vtype == JSTYPE_NULL || vtype == JSTYPE_VOID)
@@ -63,10 +69,16 @@ js2py(Context* cx, jsval val)
     }
     else if(vtype == JSTYPE_FUNCTION)
     {
-        return js2py_function(cx, val);
+        return js2py_function(cx, val, parent);
     }
     else if(vtype == JSTYPE_OBJECT)
     {
+        JSObject* obj = JSVAL_TO_OBJECT(val);
+        if(JS_IsArrayObject(cx->cx, obj))
+        {
+            return js2py_array(cx, val);
+        }
+        
         return js2py_object(cx, val);
     }
     

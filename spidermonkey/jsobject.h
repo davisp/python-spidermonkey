@@ -6,19 +6,16 @@
     object in Python land.
 */
 
-#include <Python.h>
-#include "structmember.h"
-
-#include "spidermonkey.h"
-
 typedef struct {
     PyObject_HEAD
     Context* cx;
-    JSObject* jsobj;
+    jsval val;
+    JSObject* obj;
 } Object;
 
 extern PyTypeObject _ObjectType;
 
+PyObject* make_object(PyTypeObject* type, Context* cx, jsval val);
 PyObject* js2py_object(Context* cx, jsval val);
 
 #endif
