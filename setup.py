@@ -83,7 +83,6 @@ setup(
     
     setup_requires = [
         'setuptools>=0.6c8',
-        'pyrex>=0.9.8.5',
     ],
 
     ext_modules =  [
