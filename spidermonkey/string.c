@@ -1,7 +1,7 @@
 #include "spidermonkey.h"
 
 JSString*
-py2js_string(JSContext* cx, PyObject* str)
+py2js_string_obj(Context* cx, PyObject* str)
 {
     JSString* rval = NULL;
     PyObject* conv = NULL;
@@ -26,25 +26,40 @@ py2js_string(JSContext* cx, PyObject* str)
     if(PyString_AsStringAndSize(encoded, &bytes, &len) < 0) goto cleanup;
     if(len < 4) goto cleanup;
 
-    rval = JS_NewUCStringCopyN(cx, (jschar*) (bytes+2), (len/2)-1);
+    rval = JS_NewUCStringCopyN(cx->cx, (jschar*) (bytes+2), (len/2)-1);
     
 cleanup:
     Py_XDECREF(conv);
     return rval;
 }
 
-PyObject*
-js2py_string(JSString* str)
+jsval
+py2js_string(Context* cx, PyObject* str)
 {
+    JSString* val = py2js_string_obj(cx->cx, str);
+    if(val == NULL)
+    {
+        PyErr_Clear();
+        return JSVAL_VOID;
+    }
+
+    return STRING_TO_JSVAL(val);
+}
+
+PyObject*
+js2py_string(Context* cx, jsval val)
+{
+    JSString* str;
     jschar* bytes;
     size_t len;
 
-    if(str == NULL)
+    if(!JSVAL_IS_STRING(val))
     {
-        PyErr_SetString(PyExc_TypeError, "Unable to convert NULL JSString");
+        PyErr_SetString(PyExc_TypeError, "Value is not a JS String.");
         return NULL;
     }
 
+    str = JSVAL_TO_STRING(val);
     len = JS_GetStringLength(str);
     bytes = JS_GetStringChars(str);
 

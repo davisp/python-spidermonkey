@@ -45,6 +45,15 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
             return NULL;
         }
 
+        if(!JS_InitStandardClasses(self->cx, self->root))
+        {
+            Py_DECREF(self);
+            PyErr_SetString(PyExc_RuntimeError, "Error initializing JS VM.");
+            return NULL;
+        }
+        
+        JS_SetErrorReporter(self->cx, report_error_cb);
+        
         self->rt = runtime;
         Py_INCREF(self->rt);
     }
@@ -83,7 +92,7 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
         return NULL;
     }
     
-    script = py2js_string(self->cx, obj);
+    script = py2js_string_obj(self, obj);
     if(script == NULL) return NULL;
     schars = JS_GetStringChars(script);
     slen = JS_GetStringLength(script);
@@ -95,14 +104,10 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
         PyErr_SetString(PyExc_RuntimeError, "Failed to execute script.");
         return NULL;
     }
-    
-    obj = js2py_string(JS_ValueToString(self->cx, rval));
-    if(obj == NULL) return NULL;
-    
-    PyObject_Print(obj, stderr, 0);
-    fprintf(stderr, "\n");
-  
-    Py_RETURN_NONE;
+
+    obj = js2py(self, rval);
+    JS_MaybeGC(self->cx);
+    return obj;
 }
 
 static PyMemberDef Context_members[] = {

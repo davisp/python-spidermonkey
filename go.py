@@ -20,4 +20,8 @@ raises(spidermonkey.Context)
 raises(spidermonkey.Context, "foo")
 
 cx = r.new_context()
-cx.execute("var f = 4; f * f;")
+assert cx.execute("var f = 4; f * f;") == 16
+assert cx.execute("22/7;") - 3.14285714286 < 0.00000001
+
+print cx.execute('var f = {"foo": "bar"}; f;')
+
