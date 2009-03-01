@@ -72,6 +72,37 @@ Object_dealloc(Object* self)
     Py_XDECREF(self->cx);
 }
 
+PyObject*
+Object_getattro(Object* self, PyObject* key)
+{
+    jsval pval;
+    JSString* pobj;
+    jschar* pchars;
+    size_t plen;
+    JSBool status = JS_FALSE;
+    jsval rval;
+
+    pval = py2js(self->cx, key);
+    if(pval == JSVAL_VOID) return NULL;
+
+    if(JSVAL_IS_STRING(pval))
+    {
+        pobj = JSVAL_TO_STRING(pval);
+        pchars = JS_GetStringChars(pobj);
+        plen = JS_GetStringLength(pobj);
+        status = JS_GetUCProperty(self->cx->cx, self->jsobj,
+                                            pchars, plen, &rval);
+    }
+
+    if(!status)
+    {
+        PyErr_SetString(PyExc_AttributeError, "Failed to get property.");
+        return NULL;
+    }
+
+    return js2py(self->cx, rval);
+}
+
 static PyMemberDef Object_members[] = {
     {NULL}
 };
@@ -98,7 +129,7 @@ PyTypeObject _ObjectType = {
     0,                                          /*tp_hash*/
     0,                                          /*tp_call*/
     0,                                          /*tp_str*/
-    0,                                          /*tp_getattro*/
+    (getattrofunc)Object_getattro,              /*tp_getattro*/
     0,                                          /*tp_setattro*/
     0,                                          /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /*tp_flags*/

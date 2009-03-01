@@ -36,7 +36,7 @@ cleanup:
 jsval
 py2js_string(Context* cx, PyObject* str)
 {
-    JSString* val = py2js_string_obj(cx->cx, str);
+    JSString* val = py2js_string_obj(cx, str);
     if(val == NULL)
     {
         PyErr_Clear();

@@ -3,6 +3,32 @@
 jsval
 py2js(Context* cx, PyObject* obj)
 {
+    if(obj == Py_None)
+    {
+        return JSVAL_NULL;
+    }
+    else if(obj == Py_True)
+    {
+        return JSVAL_TRUE;
+    }
+    else if(obj == Py_False)
+    {
+        return JSVAL_FALSE;
+    }
+    else if(PyInt_Check(obj) || PyLong_Check(obj))
+    {
+        return py2js_integer(cx, obj);
+    }
+    else if(PyFloat_Check(obj))
+    {
+        return py2js_double(cx, obj);
+    }
+    else if(PyString_Check(obj) || PyUnicode_Check(obj))
+    {
+        return py2js_string(cx, obj);
+    }
+
+    PyErr_SetString(PyExc_ValueError, "Unable to convert Python value to JS.");
     return JSVAL_VOID;
 }
 
