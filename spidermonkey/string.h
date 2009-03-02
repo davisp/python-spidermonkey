@@ -1,5 +1,5 @@
-#ifndef PYSM_UTILS_H
-#define PYSM_UTILS_H
+#ifndef PYSM_STRING_H
+#define PYSM_STRING_H
  
 JSString* py2js_string_obj(Context* cx, PyObject* str);
 jsval py2js_string(Context* cx, PyObject* str);

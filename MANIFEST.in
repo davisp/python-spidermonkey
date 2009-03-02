@@ -1,8 +1,7 @@
 include MANIFEST.in
 include LICENSE
 include README
-include spidermonkey/*.c
-include spidermonkey/*.pyx
-include spidermonkey/*.pxi
+include spidermonkey/*.*
+include spidermonkey/libjs/*.*
 include setup.py
 include tests/*.py

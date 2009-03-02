@@ -1,4 +1,5 @@
 #include "spidermonkey.h"
+#include "libjs/jsobj.h"
 
 static JSClass
 js_global_class = {
@@ -29,6 +30,23 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     self = (Context*) type->tp_alloc(type, 0);
     if(self != NULL)
     {
+        // Tracking what classes we've installed in
+        // the context.
+        self->classes = (PyDictObject*) PyDict_New();
+        if(self->classes == NULL)
+        {
+            Py_DECREF(self);
+            return NULL;
+        }
+
+        self->objects = (PySetObject*) PySet_New(NULL);
+        if(self->objects == NULL)
+        {
+            Py_DECREF(self->classes);
+            Py_DECREF(self);
+            return NULL;
+        }
+
         self->cx = JS_NewContext(runtime->rt, 8192);
         if(self->cx == NULL)
         {
@@ -75,7 +93,44 @@ Context_dealloc(Context* self)
         JS_DestroyContext(self->cx);
     }
 
+    Py_XDECREF(self->objects);
+    Py_XDECREF(self->classes);
     Py_DECREF(self->rt);
+}
+
+PyObject*
+Context_add_global(Context* self, PyObject* args, PyObject* kwargs)
+{
+    PyObject* pykey = NULL;
+    PyObject* pyval = NULL;
+    jsval jsk;
+    jsid kid;
+    jsval jsv;
+
+    if(!PyArg_ParseTuple(args, "OO", &pykey, &pyval))
+    {
+        return NULL;
+    }
+
+    jsk = py2js(self, pykey);
+    if(jsk == JSVAL_VOID) return NULL;
+
+    if(!JS_ValueToId(self->cx, jsk, &kid))
+    {
+        PyErr_SetString(PyExc_AttributeError, "Failed to create value id.");
+        return NULL;
+    }
+
+    jsv = py2js(self, pyval);
+    if(jsv == JSVAL_VOID) return NULL;
+
+    if(!js_SetProperty(self->cx, self->root, kid, &jsv))
+    {
+        PyErr_SetString(PyExc_AttributeError, "Failed to set global property.");
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
 }
 
 PyObject*
@@ -115,6 +170,12 @@ static PyMemberDef Context_members[] = {
 };
 
 static PyMethodDef Context_methods[] = {
+    {
+        "add_global",
+        (PyCFunction)Context_add_global,
+        METH_VARARGS,
+        "Install a global object in the JS VM."
+    },
     {
         "execute",
         (PyCFunction)Context_execute,
@@ -165,3 +226,33 @@ PyTypeObject _ContextType = {
     0,                                          /*tp_alloc*/
     Context_new,                                /*tp_new*/
 };
+
+PyObject*
+Context_get_class(Context* cx, const char* key)
+{
+    return PyDict_GetItemString((PyObject*) cx->classes, key);
+}
+
+int
+Context_add_class(Context* cx, const char* key, PyObject* val)
+{
+    return PyDict_SetItemString((PyObject*) cx->classes, key, val);
+}
+
+int
+Context_has_object(Context* cx, PyObject* val)
+{
+    return PySet_Contains((PyObject*) cx->objects, val);
+}
+
+int
+Context_add_object(Context* cx, PyObject* val)
+{
+    return PySet_Add((PyObject*) cx->objects, val);
+}
+
+int
+Context_rem_object(Context* cx, PyObject* val)
+{
+    return PySet_Discard((PyObject*) cx->objects, val);
+}

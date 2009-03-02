@@ -1,5 +1,5 @@
-#ifndef PYSM_CONTEXT
-#define PYSM_CONTEXT
+#ifndef PYSM_CONTEXT_H
+#define PYSM_CONTEXT_H
 
 #include <Python.h>
 #include "structmember.h"
@@ -11,7 +11,16 @@ typedef struct {
     Runtime* rt;
     JSContext* cx;
     JSObject* root;
+    PyDictObject* classes;
+    PySetObject* objects;
 } Context;
+
+PyObject* Context_get_class(Context* cx, const char* key);
+int Context_add_class(Context* cx, const char* key, PyObject* val);
+
+int Context_has_object(Context* cx, PyObject* val);
+int Context_add_object(Context* cx, PyObject* val);
+int Context_rem_object(Context* cx, PyObject* val);
 
 extern PyTypeObject _ContextType;
 

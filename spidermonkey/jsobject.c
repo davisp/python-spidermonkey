@@ -1,13 +1,42 @@
 #include "spidermonkey.h"
+#include "libjs/jsobj.h"
 
 PyObject*
 make_object(PyTypeObject* type, Context* cx, jsval val)
 {
+    uint32 flags = JSCLASS_HAS_RESERVED_SLOTS(2);
+    JSClass* klass = NULL;
     JSObject* obj = NULL;
+    jsval priv;
     PyObject* tpl = NULL;
+    PyObject* hashable = NULL;
+    void* raw = NULL;
     Object* ret = NULL;
+    int found;
 
+    // Unwrapping if its wrapped.
     obj = JSVAL_TO_OBJECT(val);
+    klass = JS_GetClass(cx->cx, obj);
+    if(klass != NULL && (klass->flags & flags) == flags)
+    {
+        fprintf(stderr, "Checking for is_pyobj\n");
+        if(JS_GetReservedSlot(cx->cx, obj, 0, &priv))
+        {
+            fprintf(stderr, "Got slot\n");
+            raw = (PyObject*) JSVAL_TO_PRIVATE(priv);
+            hashable = PyCObject_FromVoidPtr(raw, NULL);
+            if(hashable == NULL) return NULL;
+            fprintf(stderr, "Got CObj\n");
+
+            found = Context_has_object(cx, hashable);
+            if(found < 0) return NULL;
+            fprintf(stderr, "Found or not\n");
+            if(found > 0) return ((PyObject*) raw);
+            fprintf(stderr, "NOT FOUND\n");
+        }
+    }
+
+    // Wrap JS value
 
     tpl = Py_BuildValue("(O)", cx);
     if(tpl == NULL)
@@ -101,70 +130,92 @@ Object_repr(Object* self)
     return PyUnicode_Decode((const char*) rchars, rlen*2, "utf-16", "strict");
 }
 
+Py_ssize_t
+Object_length(Object* self)
+{
+    JSContext* cx;
+    JSObject* iter;
+    jsval pval;
+    JSBool status = JS_FALSE;
+    Py_ssize_t ret = 0;
+
+    cx = self->cx->cx;
+    iter = JS_NewPropertyIterator(cx, self->obj);
+
+    status = JS_NextProperty(cx, self->obj, &pval);
+    while(status == JS_TRUE && pval != JSVAL_VOID)
+    {
+        ret += 1;
+        status = JS_NextProperty(cx, self->obj, &pval);
+    }
+
+    return ret;
+}
+
 PyObject*
-Object_getattro(Object* self, PyObject* key)
+Object_getitem(Object* self, PyObject* key)
 {
     jsval pval;
-    JSType ptype;
-    JSString* pobj;
-    jschar* pchars;
-    size_t plen;
-    jsval rval;
-    const char* typename;
+    jsid pid;
 
     pval = py2js(self->cx, key);
     if(pval == JSVAL_VOID) return NULL;
-    ptype = JS_TypeOfValue(self->cx->cx, pval);
-    
-    if(ptype != JSTYPE_STRING)
+   
+    if(!JS_ValueToId(self->cx->cx, pval, &pid))
     {
-        typename = JS_GetTypeName(self->cx->cx, ptype);
-        return PyErr_Format(PyExc_TypeError, "Invalid type: %s", typename);
+        PyErr_SetString(PyExc_KeyError, "Failed to get property id.");
+        return NULL;
     }
     
-    pobj = JSVAL_TO_STRING(pval);
-    pchars = JS_GetStringChars(pobj);
-    plen = JS_GetStringLength(pobj);
-    if(!JS_GetUCProperty(self->cx->cx, self->obj, pchars, plen, &rval))
+    if(!js_GetProperty(self->cx->cx, self->obj, pid, &pval))
     {
         PyErr_SetString(PyExc_AttributeError, "Failed to get property.");
         return NULL;
     }
 
-    return js2py_with_parent(self->cx, rval, self->val);
+    return js2py_with_parent(self->cx, pval, self->val);
 }
 
 int
-Object_setattro(Object* self, PyObject* key, PyObject* val)
+Object_setitem(Object* self, PyObject* key, PyObject* val)
 {
     jsval pval;
     jsval vval;
-    JSType ptype;
-    JSString* pobj;
-    jschar* pchars;
-    size_t plen;
-    const char* typename;
-    
+    jsid pid;
+
     pval = py2js(self->cx, key);
     if(pval == JSVAL_VOID) return -1;
-    ptype = JS_TypeOfValue(self->cx->cx, pval);
-
-    if(ptype != JSTYPE_STRING)
+   
+    if(!JS_ValueToId(self->cx->cx, pval, &pid))
     {
-        typename = JS_GetTypeName(self->cx->cx, ptype);
-        PyErr_Format(PyExc_TypeError, "Invalid type: %s", typename);
+        PyErr_SetString(PyExc_KeyError, "Failed to get property id.");
         return -1;
     }
-
-    vval = py2js(self->cx, val);
-    
-    pobj = JSVAL_TO_STRING(pval);
-    pchars = JS_GetStringChars(pobj);
-    plen = JS_GetStringLength(pobj);
-    if(!JS_SetUCProperty(self->cx->cx, self->obj, pchars, plen, &vval))
+   
+    if(val != NULL)
     {
-        PyErr_SetString(PyExc_AttributeError, "Failed to set property.");
-        return -1;
+        vval = py2js(self->cx, val);
+        if(vval == JSVAL_VOID) return -1;
+
+        if(!js_SetProperty(self->cx->cx, self->obj, pid, &vval))
+        {
+            PyErr_SetString(PyExc_AttributeError, "Failed to set property.");
+            return -1;
+        }
+    }
+    else
+    {
+        if(!js_DeleteProperty(self->cx->cx, self->obj, pid, &vval))
+        {
+            PyErr_SetString(PyExc_AttributeError, "Failed to delete property.");
+            return -1;
+        }
+
+        if(vval == JSVAL_VOID)
+        {
+            PyErr_SetString(PyExc_AttributeError, "Unable to delete property.");
+            return -1;
+        }
     }
 
     return 0;
@@ -176,6 +227,12 @@ static PyMemberDef Object_members[] = {
 
 static PyMethodDef Object_methods[] = {
     {NULL}
+};
+
+PyMappingMethods Object_mapping = {
+    (lenfunc)Object_length,                     /*mp_length*/
+    (binaryfunc)Object_getitem,                 /*mp_subscript*/
+    (objobjargproc)Object_setitem               /*mp_ass_subscript*/
 };
 
 PyTypeObject _ObjectType = {
@@ -192,12 +249,12 @@ PyTypeObject _ObjectType = {
     (reprfunc)Object_repr,                      /*tp_repr*/
     0,                                          /*tp_as_number*/
     0,                                          /*tp_as_sequence*/
-    0,                                          /*tp_as_mapping*/
+    &Object_mapping,                            /*tp_as_mapping*/
     0,                                          /*tp_hash*/
     0,                                          /*tp_call*/
     0,                                          /*tp_str*/
-    (getattrofunc)Object_getattro,              /*tp_getattro*/
-    (setattrofunc)Object_setattro,              /*tp_setattro*/
+    (getattrofunc)Object_getitem,               /*tp_getattro*/
+    (setattrofunc)Object_setitem,               /*tp_setattro*/
     0,                                          /*tp_as_buffer*/
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /*tp_flags*/
     "JavaScript Object",                        /*tp_doc*/

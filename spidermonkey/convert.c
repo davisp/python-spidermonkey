@@ -27,6 +27,14 @@ py2js(Context* cx, PyObject* obj)
     {
         return py2js_string(cx, obj);
     }
+    else if(PyObject_TypeCheck(obj, ObjectType))
+    {
+        return ((Object*) obj)->val;
+    }
+    else
+    {
+        return py2js_object(cx, obj);
+    }
 
     PyErr_SetString(PyExc_ValueError, "Unable to convert Python value to JS.");
     return JSVAL_VOID;

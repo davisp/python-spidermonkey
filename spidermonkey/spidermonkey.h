@@ -15,6 +15,8 @@
 #include "double.h"
 #include "function.h"
 
+#include "pyobject.h"
+
 #include "jsobject.h"
 #include "jsarray.h"
 #include "jsfunction.h"

@@ -30,6 +30,14 @@ assert repr(ret) == "[object Object]"
 assert ret.foo == u"bar"
 ret.pinky = "taking over."
 assert cx.execute("f.pinky;") == u"taking over."
+assert ret["foo"] == "bar"
+ret["pinky"] = "the world"
+assert cx.execute("f.pinky;") == "the world"
+cx.execute("f[2] = 13;")
+assert ret[2] == 13
+assert ret["2"] == 13
+del ret[2]
+assert cx.execute('f["2"];') == None
 
 ret = cx.execute('[1, "foo", undefined];');
 assert repr(ret) == "1,foo,"
@@ -40,3 +48,18 @@ assert ret() == "yipee"
 
 ret = cx.execute("function(arg) {return arg * arg;};")
 assert ret(4) == 16
+
+# adding globals
+cx.add_global("biz", 3)
+assert cx.execute("biz * biz;") == 9
+
+class Foo(object):
+    def __init__(self):
+        self.blam = 8
+
+myglbl = Foo()
+cx.add_global("rain", myglbl)
+print cx.execute("rain;")
+assert cx.execute("rain;") == myglbl
+assert cx.execute("rain.blam / 2;") == 4
+
