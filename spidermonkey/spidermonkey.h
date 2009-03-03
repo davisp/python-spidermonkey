@@ -24,11 +24,14 @@
 #include "convert.h"
 #include "error.h"
 
+#include "hashcobj.h"
+
 extern PyTypeObject* RuntimeType;
 extern PyTypeObject* ContextType;
 extern PyTypeObject* ClassType;
 extern PyTypeObject* ObjectType;
 extern PyTypeObject* ArrayType;
 extern PyTypeObject* FunctionType;
+extern PyTypeObject* HashCObjType;
 
 #endif

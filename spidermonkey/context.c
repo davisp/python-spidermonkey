@@ -69,6 +69,20 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
             PyErr_SetString(PyExc_RuntimeError, "Error initializing JS VM.");
             return NULL;
         }
+      
+        /*
+            Notice that we aren't ref'ing the python context. If we
+            did that'd lead to a lovely cyclic dependancy between
+            the JSContext and the PyContext.
+
+            To fix this, any Python object that may be accessed from
+            JS code will add a ref to the Python Context to make sure
+            it stays alive properly. Hopefully this works.
+
+            Also, if we were doing stuff when the context was destroyed
+            we'd have to keep this in mind.
+        */
+        JS_SetContextPrivate(self->cx, self);
         
         JS_SetErrorReporter(self->cx, report_error_cb);
         

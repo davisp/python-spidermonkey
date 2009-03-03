@@ -11,6 +11,7 @@ PyTypeObject* ClassType = NULL;
 PyTypeObject* ObjectType = NULL;
 PyTypeObject* ArrayType = NULL;
 PyTypeObject* FunctionType = NULL;
+PyTypeObject* HashCObjType = NULL;
 
 static PyMethodDef spidermonkey_methods[] = {
     {NULL}
@@ -31,6 +32,8 @@ initspidermonkey(void)
 
     _FunctionType.tp_base = &_ObjectType;
     if(PyType_Ready(&_FunctionType) < 0) return;
+
+    if(PyType_Ready(&_HashCObjType) < 0) return;
     
     m = Py_InitModule3("spidermonkey", spidermonkey_methods,
             "The Python-Spidermonkey bridge.");
@@ -63,4 +66,8 @@ initspidermonkey(void)
     FunctionType = &_FunctionType;
     Py_INCREF(FunctionType);
     PyModule_AddObject(m, "Function", (PyObject*) FunctionType);
+
+    HashCObjType = &_HashCObjType;
+    Py_INCREF(HashCObjType);
+    // Don't add access from the module on purpose.
 }

@@ -4,12 +4,13 @@
 PyObject*
 make_object(PyTypeObject* type, Context* cx, jsval val)
 {
-    uint32 flags = JSCLASS_HAS_RESERVED_SLOTS(2);
+    uint32 flags = JSCLASS_HAS_RESERVED_SLOTS(1);
     JSClass* klass = NULL;
     JSObject* obj = NULL;
     jsval priv;
     PyObject* tpl = NULL;
     PyObject* hashable = NULL;
+    PyObject* unwrapped;
     void* raw = NULL;
     Object* ret = NULL;
     int found;
@@ -19,20 +20,21 @@ make_object(PyTypeObject* type, Context* cx, jsval val)
     klass = JS_GetClass(cx->cx, obj);
     if(klass != NULL && (klass->flags & flags) == flags)
     {
-        fprintf(stderr, "Checking for is_pyobj\n");
         if(JS_GetReservedSlot(cx->cx, obj, 0, &priv))
         {
-            fprintf(stderr, "Got slot\n");
             raw = (PyObject*) JSVAL_TO_PRIVATE(priv);
-            hashable = PyCObject_FromVoidPtr(raw, NULL);
-            if(hashable == NULL) return NULL;
-            fprintf(stderr, "Got CObj\n");
 
+            hashable = HashCObj_FromVoidPtr(raw);
+            if(hashable == NULL) return NULL;
             found = Context_has_object(cx, hashable);
+
             if(found < 0) return NULL;
-            fprintf(stderr, "Found or not\n");
-            if(found > 0) return ((PyObject*) raw);
-            fprintf(stderr, "NOT FOUND\n");
+            if(found > 0)
+            {
+                unwrapped = (PyObject*) raw;
+                Py_INCREF(unwrapped);
+                return unwrapped;
+            }
         }
     }
 
@@ -139,6 +141,12 @@ Object_length(Object* self)
     JSBool status = JS_FALSE;
     Py_ssize_t ret = 0;
 
+    /*
+        Using an iterator to make sure we get all
+        the properties for this object and its
+        prototype as per JS for ... in ... semantics.
+    */
+    
     cx = self->cx->cx;
     iter = JS_NewPropertyIterator(cx, self->obj);
 

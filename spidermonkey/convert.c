@@ -33,6 +33,9 @@ py2js(Context* cx, PyObject* obj)
     }
     else
     {
+        fprintf(stderr, "To JS: ");
+        PyObject_Print(obj, stderr, 0);
+        fprintf(stderr, "\n");
         return py2js_object(cx, obj);
     }
 

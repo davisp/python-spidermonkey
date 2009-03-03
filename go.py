@@ -59,7 +59,19 @@ class Foo(object):
 
 myglbl = Foo()
 cx.add_global("rain", myglbl)
-print cx.execute("rain;")
 assert cx.execute("rain;") == myglbl
+cx.execute("rain.blam = 8;");
+assert myglbl.blam == 8
 assert cx.execute("rain.blam / 2;") == 4
+assert cx.execute("rain.blam = 3; rain.blam / 3;") == 1
+assert hasattr(myglbl, "blam") == True
+cx.execute("delete rain.blam;")
+assert hasattr(myglbl, "blam") == False
+
+print "FUNCTION TEST!"
+def meander():
+    print "Meandering enthusiastically!"
+cx.add_global("meander", meander)
+cx.execute("meander();")
+
 
