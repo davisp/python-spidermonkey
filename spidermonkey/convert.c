@@ -33,9 +33,6 @@ py2js(Context* cx, PyObject* obj)
     }
     else
     {
-        fprintf(stderr, "To JS: ");
-        PyObject_Print(obj, stderr, 0);
-        fprintf(stderr, "\n");
         return py2js_object(cx, obj);
     }
 
@@ -54,7 +51,11 @@ js2py_with_parent(Context* cx, jsval val, jsval parent)
 {
     JSType vtype = JS_TypeOfValue(cx->cx, val);
 
-    if(vtype == JSTYPE_NULL || vtype == JSTYPE_VOID)
+    /*
+        There's not JSType for null. Or rather, its
+        reported as Object which causes segfaults.
+    */
+    if(val == JSVAL_NULL || val == JSVAL_VOID)
     {
         Py_RETURN_NONE;
     }

@@ -319,7 +319,6 @@ js_call(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
     JSFunction* jsfunc = NULL;
     JSObject* wrapper = NULL;
     
-    fprintf(stderr, "CALLING OBJECT!\n");
     pycx = (Context*) JS_GetContextPrivate(jscx);
     if(pycx == NULL)
     {
@@ -352,7 +351,7 @@ js_call(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
         PyErr_Clear();
         return JS_FALSE;
     }
-
+    
     *rval = py2js(pycx, ret);
     if(*rval == JSVAL_VOID)
     {

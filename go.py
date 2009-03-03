@@ -68,7 +68,6 @@ assert hasattr(myglbl, "blam") == True
 cx.execute("delete rain.blam;")
 assert hasattr(myglbl, "blam") == False
 
-print "FUNCTION TEST!"
 def meander():
     print "Meandering enthusiastically!"
 cx.add_global("meander", meander)
