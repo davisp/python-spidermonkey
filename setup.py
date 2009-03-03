@@ -47,6 +47,12 @@ def platform_config():
         "-Wno-strict-prototypes"
     ]
 
+    if sysname == "Linux":
+        config["extra_compile_args"].extend([
+            "-DHAVE_VA_COPY",
+            "-DVA_COPY=va_copy"
+            ])
+
     if sysname in ["Darwin", "Linux"]:
         config["extra_compile_args"].append("-DXP_UNIX")
     else:
