@@ -69,8 +69,8 @@ cx.execute("delete rain.blam;")
 assert hasattr(myglbl, "blam") == False
 
 def meander():
-    print "Meandering enthusiastically!"
+    return "Meandering enthusiastically!"
 cx.add_global("meander", meander)
-cx.execute("meander();")
+assert cx.execute("meander();").startswith("Meandering")
 
 
