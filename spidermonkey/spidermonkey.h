@@ -8,7 +8,6 @@
 
 #include "runtime.h"
 #include "context.h"
-#include "class.h"
 
 #include "string.h"
 #include "integer.h"
