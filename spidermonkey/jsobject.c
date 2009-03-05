@@ -137,7 +137,7 @@ Object_length(Object* self)
 {
     JSContext* cx;
     JSObject* iter;
-    jsval pval;
+    jsid pid;
     JSBool status = JS_FALSE;
     Py_ssize_t ret = 0;
 
@@ -149,12 +149,11 @@ Object_length(Object* self)
     
     cx = self->cx->cx;
     iter = JS_NewPropertyIterator(cx, self->obj);
-
-    status = JS_NextProperty(cx, self->obj, &pval);
-    while(status == JS_TRUE && pval != JSVAL_VOID)
+    status = JS_NextProperty(cx, iter, &pid);
+    while(status == JS_TRUE && pid != JSVAL_VOID)
     {
         ret += 1;
-        status = JS_NextProperty(cx, self->obj, &pval);
+        status = JS_NextProperty(cx, iter, &pid);
     }
 
     return ret;
@@ -229,6 +228,105 @@ Object_setitem(Object* self, PyObject* key, PyObject* val)
     return 0;
 }
 
+PyObject*
+Object_rich_cmp(Object* self, PyObject* other, int op)
+{
+    JSContext* cx;
+    JSObject* iter;
+    jsid pid;
+    jsval pkey;
+    jsval pval;
+    JSBool status = JS_FALSE;
+    PyObject* key;
+    PyObject* val;
+    PyObject* otherval;
+    int llen;
+    int rlen;
+    int cmp;
+
+    if(!PyMapping_Check(other) && !PySequence_Check(other))
+    {
+        PyErr_SetString(PyExc_ValueError, "Invalid rhs operand.");
+        return NULL;
+    }
+
+    if(op != Py_EQ && op != Py_NE) return Py_NotImplemented;
+
+    llen = PyObject_Length((PyObject*)self);
+    if(llen < 0) return NULL;
+
+    rlen = PyObject_Length(other);
+    if(rlen < 0) return NULL;
+
+    if(llen != rlen)
+    {
+        if(op == Py_EQ) Py_RETURN_FALSE;
+        else Py_RETURN_TRUE;
+    }
+
+    cx = self->cx->cx;
+    iter = JS_NewPropertyIterator(cx, self->obj);
+    status = JS_NextProperty(cx, iter, &pid);
+    while(status == JS_TRUE && pkey != JSVAL_VOID)
+    {
+        if(!JS_IdToValue(self->cx->cx, pid, &pkey))
+        {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to get jsid key.");
+            return NULL;
+        }
+
+        if(!js_GetProperty(self->cx->cx, self->obj, pid, &pval))
+        {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to get property.");
+            return NULL;
+        }
+
+        key = js2py(self->cx, pkey);
+        if(key == NULL)
+        {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to convert key.");
+            return NULL;
+        }
+
+        val = js2py(self->cx, pval);
+        if(val == NULL)
+        {
+            Py_DECREF(key);
+            PyErr_SetString(PyExc_RuntimeError, "Failed to convert value.");
+            return NULL;
+        }
+
+        otherval = PyObject_GetItem(other, key);
+        if(otherval == NULL)
+        {
+            Py_DECREF(key);
+            Py_DECREF(val);
+            PyErr_Clear();
+            if(op == Py_EQ) Py_RETURN_FALSE;
+            else Py_RETURN_TRUE;
+        }
+
+        cmp = PyObject_Compare(val, otherval);
+
+        Py_DECREF(key);
+        Py_DECREF(val);
+        Py_DECREF(otherval);
+
+        if(PyErr_Occurred()) return NULL;
+
+        if(cmp != 0)
+        {
+            if(op == Py_EQ) Py_RETURN_FALSE;
+            else Py_RETURN_TRUE;
+        }
+
+        status = JS_NextProperty(cx, iter, &pkey);
+    }
+
+    if(op == Py_EQ) Py_RETURN_TRUE;
+    else Py_RETURN_FALSE;
+}
+
 static PyMemberDef Object_members[] = {
     {NULL}
 };
@@ -268,7 +366,7 @@ PyTypeObject _ObjectType = {
     "JavaScript Object",                        /*tp_doc*/
     0,		                                    /*tp_traverse*/
     0,		                                    /*tp_clear*/
-    0,		                                    /*tp_richcompare*/
+    (richcmpfunc)Object_rich_cmp,		        /*tp_richcompare*/
     0,		                                    /*tp_weaklistoffset*/
     0,		                                    /*tp_iter*/
     0,		                                    /*tp_iternext*/
