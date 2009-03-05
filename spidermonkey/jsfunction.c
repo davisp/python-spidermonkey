@@ -60,7 +60,6 @@ Function_call(Function* self, PyObject* args, PyObject* kwargs)
         item = PySequence_GetItem(args, idx);
         if(item == NULL)
         {
-            fprintf(stderr, "Failed to get element.\n");
             free(argv);
             return NULL;
         }
@@ -68,7 +67,6 @@ Function_call(Function* self, PyObject* args, PyObject* kwargs)
         argv[idx] = py2js(self->obj.cx, item);
         if(argv[idx] == JSVAL_VOID)
         {
-            fprintf(stderr, "Failed to convert value.\n");
             free(argv);
             return NULL;
         }
@@ -79,7 +77,6 @@ Function_call(Function* self, PyObject* args, PyObject* kwargs)
     parent = JSVAL_TO_OBJECT(self->parent);
     if(!JS_CallFunctionValue(cx, parent, func, argc, argv, &rval))
     {
-        fprintf(stderr, "Failed to call function\n");
         free(argv);
         PyErr_SetString(PyExc_RuntimeError, "Failed to execute JS Function.");
         return NULL;

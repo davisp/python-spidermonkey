@@ -75,7 +75,7 @@ js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* val)
     PyObject* pykey = NULL;
     PyObject* pyval = NULL;
     JSBool ret = JS_FALSE;
-    
+   
     pycx = (Context*) JS_GetContextPrivate(jscx);
     if(pycx == NULL) goto cleanup;
     
@@ -85,15 +85,18 @@ js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* val)
     pykey = js2py(pycx, key);
     if(pykey == NULL) goto cleanup;
 
-    //pyval = PyObject_GetItem(pyobj, pykey);
+    pyval = PyObject_GetItem(pyobj, pykey);
     if(pyval == NULL) pyval = PyObject_GetAttr(pyobj, pykey);
-    if(pyval == NULL) goto cleanup;
-    
-    *val = py2js(pycx, pyval);
-    if(*val != JSVAL_VOID)
+    if(pyval != NULL)
     {
-        ret = JS_TRUE;
+        *val = py2js(pycx, pyval);
     }
+    else
+    {
+        *val = JSVAL_VOID;
+    }
+    
+    ret = JS_TRUE;
     
 cleanup:
     // No CX decref cause it's not incref'ed
@@ -316,8 +319,6 @@ js_call(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
     PyObject* pyobj = NULL;
     PyObject* tpl = NULL;
     PyObject* ret = NULL;
-    JSFunction* jsfunc = NULL;
-    JSObject* wrapper = NULL;
     
     pycx = (Context*) JS_GetContextPrivate(jscx);
     if(pycx == NULL)
