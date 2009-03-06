@@ -6,16 +6,17 @@ Runtime_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     Runtime* self;
 
     self = (Runtime*) type->tp_alloc(type, 0);
-    if(self != NULL)
-    {
-        self->rt = JS_NewRuntime(1000000);
-        if(self->rt == NULL)
-        {
-            Py_DECREF(self);
-            return NULL;
-        }
-    }
+    if(self == NULL) goto error;
 
+    self->rt = JS_NewRuntime(1000000);
+    if(self->rt == NULL) goto error;
+
+    goto success;
+
+error:
+    Py_XDECREF(self);
+
+success:
     return (PyObject*) self;
 }
 
@@ -41,10 +42,15 @@ Runtime_new_context(Runtime* self, PyObject* args, PyObject* kwargs)
     PyObject* tpl = NULL;
     
     tpl = Py_BuildValue("(O)", self);
-    if(tpl == NULL) return NULL;
+    if(tpl == NULL) goto error;
     
     cx = PyObject_CallObject((PyObject*) ContextType, tpl);
+    goto success;
 
+error:
+    Py_XDECREF(cx);
+
+success:
     Py_XDECREF(tpl);
     return cx;
 }

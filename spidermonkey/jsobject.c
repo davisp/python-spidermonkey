@@ -4,15 +4,15 @@
 PyObject*
 make_object(PyTypeObject* type, Context* cx, jsval val)
 {
+    Object* wrapped = NULL;
+    PyObject* tpl = NULL;
+    PyObject* hashable = NULL;
+    PyObject* ret = NULL;
+    void* raw = NULL;
     uint32 flags = JSCLASS_HAS_RESERVED_SLOTS(1);
     JSClass* klass = NULL;
     JSObject* obj = NULL;
     jsval priv;
-    PyObject* tpl = NULL;
-    PyObject* hashable = NULL;
-    PyObject* unwrapped;
-    void* raw = NULL;
-    Object* ret = NULL;
     int found;
 
     // Unwrapping if its wrapped.
@@ -23,44 +23,45 @@ make_object(PyTypeObject* type, Context* cx, jsval val)
         if(JS_GetReservedSlot(cx->cx, obj, 0, &priv))
         {
             raw = (PyObject*) JSVAL_TO_PRIVATE(priv);
-
             hashable = HashCObj_FromVoidPtr(raw);
-            if(hashable == NULL) return NULL;
-            found = Context_has_object(cx, hashable);
+            if(hashable == NULL) goto error;
 
-            if(found < 0) return NULL;
+            found = Context_has_object(cx, hashable);
+            if(found < 0) goto error;
             if(found > 0)
             {
-                unwrapped = (PyObject*) raw;
-                Py_INCREF(unwrapped);
-                return unwrapped;
+                ret = (PyObject*) raw;
+                Py_INCREF(ret);
+                goto success;
             }
         }
     }
 
     // Wrap JS value
-
     tpl = Py_BuildValue("(O)", cx);
-    if(tpl == NULL)
-    {
-        return NULL;
-    }
+    if(tpl == NULL) goto error;
     
-    ret = (Object*) PyObject_CallObject((PyObject*) type, tpl);
-    if(ret != NULL)
+    wrapped = (Object*) PyObject_CallObject((PyObject*) type, tpl);
+    if(wrapped == NULL) goto error;
+    
+    wrapped->val = val;
+    wrapped->obj = obj;
+
+    if(!JS_AddRoot(cx->cx, &(wrapped->val)))
     {
-        ret->val = val;
-        ret->obj = obj;
-        if(!JS_AddRoot(cx->cx, &(ret->val)))
-        {
-            Py_DECREF(ret);
-            PyErr_SetString(PyExc_RuntimeError, "Failed to set GC root.");
-            ret = NULL;
-        }
+        PyErr_SetString(PyExc_RuntimeError, "Failed to set GC root.");
+        goto error;
     }
 
-    Py_DECREF(tpl);
-    
+    ret = (PyObject*) wrapped;
+    goto success;
+
+error:
+    Py_XDECREF(wrapped);
+    ret = NULL; // In case it was AddRoot
+
+success:
+    Py_XDECREF(tpl);
     return (PyObject*) ret;
 }
 
@@ -73,23 +74,22 @@ js2py_object(Context* cx, jsval val)
 PyObject*
 Object_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 {
-    Object* self;
-    Context* cx;
-    
-    if(!PyArg_ParseTuple(args, "O!", ContextType, &cx))
-    {
-        return NULL;
-    }
+    Object* self = NULL;
+    Context* cx = NULL;
+
+    if(!PyArg_ParseTuple(args, "O!", ContextType, &cx)) goto error;
 
     self = (Object*) type->tp_alloc(type, 0);
-    if(self != NULL)
-    {
-        Py_INCREF(cx);
-        self->cx = cx;
-        self->val = JSVAL_VOID;
-        self->obj = NULL;
-    }
+    if(self == NULL) goto error;
+    
+    Py_INCREF(cx);
+    self->cx = cx;
+    self->val = JSVAL_VOID;
+    self->obj = NULL;
+    goto success;
 
+error:
+success:
     return (PyObject*) self;
 }
 
@@ -113,16 +113,15 @@ Object_dealloc(Object* self)
 PyObject*
 Object_repr(Object* self)
 {
-    jsval val;
+    //jsval val;
     JSString* repr = NULL;
     jschar* rchars = NULL;
     size_t rlen;
     
-    val = OBJECT_TO_JSVAL(self->obj);
-    repr = JS_ValueToString(self->cx->cx, val);
+    repr = JS_ValueToString(self->cx->cx, self->val);
     if(repr == NULL)
     {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to convert array.");
+        PyErr_SetString(PyExc_RuntimeError, "Failed to convert to a string.");
         return NULL;
     }
 
@@ -231,15 +230,16 @@ Object_setitem(Object* self, PyObject* key, PyObject* val)
 PyObject*
 Object_rich_cmp(Object* self, PyObject* other, int op)
 {
+    PyObject* key = NULL;
+    PyObject* val = NULL;
+    PyObject* otherval = NULL;
+    PyObject* ret = NULL;
     JSContext* cx;
     JSObject* iter;
+    JSBool status = JS_FALSE;
     jsid pid;
     jsval pkey;
     jsval pval;
-    JSBool status = JS_FALSE;
-    PyObject* key;
-    PyObject* val;
-    PyObject* otherval;
     int llen;
     int rlen;
     int cmp;
@@ -247,84 +247,86 @@ Object_rich_cmp(Object* self, PyObject* other, int op)
     if(!PyMapping_Check(other) && !PySequence_Check(other))
     {
         PyErr_SetString(PyExc_ValueError, "Invalid rhs operand.");
-        return NULL;
+        goto error;
     }
 
     if(op != Py_EQ && op != Py_NE) return Py_NotImplemented;
 
     llen = PyObject_Length((PyObject*)self);
-    if(llen < 0) return NULL;
+    if(llen < 0) goto error;
 
     rlen = PyObject_Length(other);
-    if(rlen < 0) return NULL;
+    if(rlen < 0) goto error;
 
     if(llen != rlen)
     {
-        if(op == Py_EQ) Py_RETURN_FALSE;
-        else Py_RETURN_TRUE;
+        if(op == Py_EQ) ret = Py_False;
+        else ret = Py_True;
+        goto success;
     }
 
     cx = self->cx->cx;
     iter = JS_NewPropertyIterator(cx, self->obj);
     status = JS_NextProperty(cx, iter, &pid);
-    while(status == JS_TRUE && pkey != JSVAL_VOID)
+    while(status == JS_TRUE && pid != JSVAL_VOID)
     {
         if(!JS_IdToValue(self->cx->cx, pid, &pkey))
         {
-            PyErr_SetString(PyExc_RuntimeError, "Failed to get jsid key.");
-            return NULL;
+            PyErr_SetString(PyExc_RuntimeError, "Failed to get key.");
+            goto error;
         }
 
         if(!js_GetProperty(self->cx->cx, self->obj, pid, &pval))
         {
             PyErr_SetString(PyExc_RuntimeError, "Failed to get property.");
-            return NULL;
+            goto error;
         }
 
         key = js2py(self->cx, pkey);
-        if(key == NULL)
-        {
-            PyErr_SetString(PyExc_RuntimeError, "Failed to convert key.");
-            return NULL;
-        }
+        if(key == NULL) goto error;
 
         val = js2py(self->cx, pval);
-        if(val == NULL)
-        {
-            Py_DECREF(key);
-            PyErr_SetString(PyExc_RuntimeError, "Failed to convert value.");
-            return NULL;
-        }
+        if(val == NULL) goto error;
 
         otherval = PyObject_GetItem(other, key);
         if(otherval == NULL)
         {
-            Py_DECREF(key);
-            Py_DECREF(val);
             PyErr_Clear();
-            if(op == Py_EQ) Py_RETURN_FALSE;
-            else Py_RETURN_TRUE;
+            if(op == Py_EQ) ret = Py_False;
+            else ret = Py_True;
+            goto success;
         }
 
         cmp = PyObject_Compare(val, otherval);
-
-        Py_DECREF(key);
-        Py_DECREF(val);
-        Py_DECREF(otherval);
-
-        if(PyErr_Occurred()) return NULL;
+        if(PyErr_Occurred()) goto error;
 
         if(cmp != 0)
         {
-            if(op == Py_EQ) Py_RETURN_FALSE;
-            else Py_RETURN_TRUE;
+            if(op == Py_EQ) ret = Py_False;
+            else ret = Py_True;
+            goto success;
         }
 
-        status = JS_NextProperty(cx, iter, &pkey);
+        Py_DECREF(key); key = NULL;
+        Py_DECREF(val); val = NULL;
+        Py_DECREF(otherval); otherval = NULL;
+
+        status = JS_NextProperty(cx, iter, &pid);
     }
 
-    if(op == Py_EQ) Py_RETURN_TRUE;
-    else Py_RETURN_FALSE;
+    if(op == Py_EQ) ret = Py_True;
+    else ret = Py_False;
+
+    goto success;
+
+error:
+success:
+    Py_XDECREF(key);
+    Py_XDECREF(val);
+    Py_XDECREF(otherval);
+    // Inc ref the true or false return
+    if(ret == Py_True || ret == Py_False) Py_INCREF(ret);
+    return ret;
 }
 
 static PyMemberDef Object_members[] = {

@@ -19,77 +19,67 @@ js_global_class = {
 PyObject*
 Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 {
-    Context* self;
+    Context* self = NULL;
     Runtime* runtime = NULL;
 
-    if(!PyArg_ParseTuple(args, "O!", RuntimeType, &runtime))
-    {
-        return NULL;
-    }
+    if(!PyArg_ParseTuple(args, "O!", RuntimeType, &runtime)) goto error;
 
     self = (Context*) type->tp_alloc(type, 0);
-    if(self != NULL)
+    if(self == NULL) goto error;
+
+    // Tracking what classes we've installed in
+    // the context.
+    self->classes = (PyDictObject*) PyDict_New();
+    if(self->classes == NULL) goto error;
+
+
+    self->objects = (PySetObject*) PySet_New(NULL);
+    if(self->objects == NULL) goto error;
+
+    self->cx = JS_NewContext(runtime->rt, 8192);
+    if(self->cx == NULL)
     {
-        // Tracking what classes we've installed in
-        // the context.
-        self->classes = (PyDictObject*) PyDict_New();
-        if(self->classes == NULL)
-        {
-            Py_DECREF(self);
-            return NULL;
-        }
-
-        self->objects = (PySetObject*) PySet_New(NULL);
-        if(self->objects == NULL)
-        {
-            Py_DECREF(self->classes);
-            Py_DECREF(self);
-            return NULL;
-        }
-
-        self->cx = JS_NewContext(runtime->rt, 8192);
-        if(self->cx == NULL)
-        {
-            PyErr_SetString(PyExc_RuntimeError, "Failed to create JSContext.");
-            Py_DECREF(self);
-            return NULL;
-        }
-
-        self->root = JS_NewObject(self->cx, &js_global_class, NULL, NULL);
-        if(self->root == NULL)
-        {
-            Py_DECREF(self);
-            PyErr_SetString(PyExc_RuntimeError, "Error creating root object.");
-            return NULL;
-        }
-
-        if(!JS_InitStandardClasses(self->cx, self->root))
-        {
-            Py_DECREF(self);
-            PyErr_SetString(PyExc_RuntimeError, "Error initializing JS VM.");
-            return NULL;
-        }
-      
-        /*
-            Notice that we aren't ref'ing the python context. If we
-            did that'd lead to a lovely cyclic dependancy between
-            the JSContext and the PyContext.
-
-            To fix this, any Python object that may be accessed from
-            JS code will add a ref to the Python Context to make sure
-            it stays alive properly. Hopefully this works.
-
-            Also, if we were doing stuff when the context was destroyed
-            we'd have to keep this in mind.
-        */
-        JS_SetContextPrivate(self->cx, self);
-        
-        JS_SetErrorReporter(self->cx, report_error_cb);
-        
-        self->rt = runtime;
-        Py_INCREF(self->rt);
+        PyErr_SetString(PyExc_RuntimeError, "Failed to create JSContext.");
+        goto error;
     }
 
+    self->root = JS_NewObject(self->cx, &js_global_class, NULL, NULL);
+    if(self->root == NULL)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Error creating root object.");
+        goto error;
+    }
+
+    if(!JS_InitStandardClasses(self->cx, self->root))
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Error initializing JS VM.");
+        goto error;
+    }
+      
+    /*
+     *  Notice that we don't add a ref to the Python context for
+     *  the copy stored on the JSContext*. I'm pretty sure this
+     *  would cause a cyclic dependancy that would prevent
+     *  garbage collection from happening on either side of the
+     *  bridge.
+     *
+     *  To make sure that the context stays alive we'll add a
+     *  reference to the Context* anytime we wrap a Python
+     *  object for use in JS.
+     *
+     */
+    JS_SetContextPrivate(self->cx, self);
+    JS_SetErrorReporter(self->cx, report_error_cb);
+    
+    Py_INCREF(runtime);
+    self->rt = runtime;
+
+    goto success;
+
+error:
+    Py_XDECREF(self);
+
+success:
     return (PyObject*) self;
 }
 
@@ -121,29 +111,30 @@ Context_add_global(Context* self, PyObject* args, PyObject* kwargs)
     jsid kid;
     jsval jsv;
 
-    if(!PyArg_ParseTuple(args, "OO", &pykey, &pyval))
-    {
-        return NULL;
-    }
+    if(!PyArg_ParseTuple(args, "OO", &pykey, &pyval)) goto error;
 
     jsk = py2js(self, pykey);
-    if(jsk == JSVAL_VOID) return NULL;
+    if(jsk == JSVAL_VOID) goto error;
 
     if(!JS_ValueToId(self->cx, jsk, &kid))
     {
         PyErr_SetString(PyExc_AttributeError, "Failed to create value id.");
-        return NULL;
+        goto error;
     }
 
     jsv = py2js(self, pyval);
-    if(jsv == JSVAL_VOID) return NULL;
+    if(jsv == JSVAL_VOID) goto error;
 
     if(!js_SetProperty(self->cx, self->root, kid, &jsv))
     {
         PyErr_SetString(PyExc_AttributeError, "Failed to set global property.");
-        return NULL;
+        goto error;
     }
 
+    goto success;
+
+error:
+success:
     Py_RETURN_NONE;
 }
 
@@ -151,32 +142,41 @@ PyObject*
 Context_execute(Context* self, PyObject* args, PyObject* kwargs)
 {
     PyObject* obj = NULL;
+    PyObject* ret = NULL;
     JSString* script = NULL;
     jschar* schars = NULL;
     size_t slen;
     jsval rval;
 
-    if(!PyArg_ParseTuple(args, "O", &obj))
-    {
-        return NULL;
-    }
+    if(!PyArg_ParseTuple(args, "O", &obj)) goto error;
     
     script = py2js_string_obj(self, obj);
-    if(script == NULL) return NULL;
+    if(script == NULL) goto error;
+
     schars = JS_GetStringChars(script);
     slen = JS_GetStringLength(script);
     
-    if(!JS_EvaluateUCScript(self->cx, self->root,
-                                schars, slen, "Python", 0, &rval)
-    )
+    if(!JS_EvaluateUCScript(
+            self->cx, self->root, schars, slen, "Python", 0, &rval
+    ))
     {
         PyErr_SetString(PyExc_RuntimeError, "Failed to execute script.");
-        return NULL;
+        goto error;
     }
 
-    obj = js2py(self, rval);
+    if(PyErr_Occurred())
+    {
+        PyErr_PrintEx(0);
+        exit(-1);
+    }
+
+    ret = js2py(self, rval);
     JS_MaybeGC(self->cx);
-    return obj;
+    goto success;
+
+error:
+success:
+    return ret;
 }
 
 static PyMemberDef Context_members[] = {

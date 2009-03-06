@@ -12,7 +12,6 @@
 #include "string.h"
 #include "integer.h"
 #include "double.h"
-#include "function.h"
 
 #include "pyobject.h"
 

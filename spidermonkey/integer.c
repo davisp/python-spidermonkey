@@ -4,33 +4,36 @@ jsval
 py2js_integer(Context* cx, PyObject* obj)
 {
     long pyval;
-    jsval rval;
+    jsval ret = JSVAL_VOID;
     
     if(PyInt_Check(obj))
     {
         pyval = PyInt_AsLong(obj);
-        if(PyErr_Occurred()) return JSVAL_VOID;
+        if(PyErr_Occurred()) goto error;
     }
     else
     {
         pyval = PyLong_AsLong(obj);
-        if(PyErr_Occurred()) return JSVAL_VOID;
+        if(PyErr_Occurred()) goto error;
     }
     
     if(INT_FITS_IN_JSVAL(pyval))
     {
-        rval = INT_TO_JSVAL(pyval);
-    }
-    else
-    {
-        if(!JS_NewNumberValue(cx->cx, pyval, &rval))
-        {
-            PyErr_SetString(PyExc_ValueError, "Failed to convert number.");
-            return JSVAL_VOID;
-        }
+        ret = INT_TO_JSVAL(pyval);
+        goto success;
     }
     
-    return rval;
+    if(!JS_NewNumberValue(cx->cx, pyval, &ret))
+    {
+        PyErr_SetString(PyExc_ValueError, "Failed to convert number.");
+        goto error;
+    }
+
+    goto success;
+
+error:
+success:
+    return ret;
 }
 
 PyObject*

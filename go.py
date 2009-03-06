@@ -72,5 +72,7 @@ def meander():
     return "Meandering enthusiastically!"
 cx.add_global("meander", meander)
 assert cx.execute("meander();").startswith("Meandering")
-
 assert cx.execute('var f = {"foo": "bar"}; f;') == {"foo": "bar"}
+
+import nose
+nose.run()

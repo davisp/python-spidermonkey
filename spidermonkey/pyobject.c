@@ -86,7 +86,12 @@ js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* val)
     if(pykey == NULL) goto cleanup;
 
     pyval = PyObject_GetItem(pyobj, pykey);
-    if(pyval == NULL) pyval = PyObject_GetAttr(pyobj, pykey);
+    if(pyval == NULL)
+    {
+        if(PyErr_Occurred()) PyErr_Clear();
+        pyval = PyObject_GetAttr(pyobj, pykey);
+    }
+
     if(pyval != NULL)
     {
         *val = py2js(pycx, pyval);
@@ -95,7 +100,7 @@ js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* val)
     {
         *val = JSVAL_VOID;
     }
-    
+   
     ret = JS_TRUE;
     
 cleanup:

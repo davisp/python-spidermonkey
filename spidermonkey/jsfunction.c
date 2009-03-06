@@ -8,20 +8,25 @@ js2py_function(Context* cx, jsval val, jsval parent)
     if(parent == JSVAL_VOID || !JSVAL_IS_OBJECT(parent))
     {
         PyErr_BadInternalCall();
-        return NULL;
+        goto error;
     }
     
     ret = (Function*) make_object(FunctionType, cx, val);
-    if(ret == NULL) return NULL;
+    if(ret == NULL) goto error;
 
     ret->parent = parent;
     if(!JS_AddRoot(cx->cx, &(ret->parent)))
     {
-        Py_DECREF((Object*) ret);
         PyErr_SetString(PyExc_RuntimeError, "Failed to add GC root.");
-        return NULL;
+        goto error;
     }
 
+    goto success;
+
+error:
+    Py_XDECREF((PyObject*)ret);
+    ret = NULL; // In case of AddRoot error.
+success:
     return (PyObject*) ret;
 }
 
@@ -39,37 +44,35 @@ Function_dealloc(Function* self)
 PyObject*
 Function_call(Function* self, PyObject* args, PyObject* kwargs)
 {
-    PyObject* item;
-    PyObject* ret;
+    PyObject* item = NULL;
+    PyObject* ret = NULL;
     Py_ssize_t argc;
     Py_ssize_t idx;
     JSContext* cx;
     JSObject* parent;
     jsval func;
-    jsval* argv;
+    jsval* argv = NULL;
     jsval rval;
     
     argc = PySequence_Length(args);
-    if(argc < 0) return NULL;
+    if(argc < 0) goto error;
     
     argv = malloc(sizeof(jsval) * argc);
-    if(argv == NULL) return PyErr_NoMemory();
+    if(argv == NULL)
+    {
+        PyErr_NoMemory();
+        goto error;
+    }
     
     for(idx = 0; idx < argc; idx++)
     {
         item = PySequence_GetItem(args, idx);
-        if(item == NULL)
-        {
-            free(argv);
-            return NULL;
-        }
+        if(item == NULL) goto error;
         
         argv[idx] = py2js(self->obj.cx, item);
-        if(argv[idx] == JSVAL_VOID)
-        {
-            free(argv);
-            return NULL;
-        }
+        if(argv[idx] == JSVAL_VOID) goto error;
+        Py_DECREF(item);
+        item = NULL; // Prevent double decref.
     }
 
     func = self->obj.val;
@@ -77,14 +80,18 @@ Function_call(Function* self, PyObject* args, PyObject* kwargs)
     parent = JSVAL_TO_OBJECT(self->parent);
     if(!JS_CallFunctionValue(cx, parent, func, argc, argv, &rval))
     {
-        free(argv);
         PyErr_SetString(PyExc_RuntimeError, "Failed to execute JS Function.");
-        return NULL;
+        goto error;
     }
 
-    free(argv);
     ret = js2py(self->obj.cx, rval);
     JS_MaybeGC(cx);
+    goto success;
+
+error:
+    if(argv != NULL) free(argv);
+success:
+    Py_XDECREF(item);
     return ret;
 }
 

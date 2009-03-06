@@ -6,9 +6,13 @@ HashCObj_FromVoidPtr(void *cobj)
     HashCObj* self = NULL;
 
     self = PyObject_NEW(HashCObj, HashCObjType);
-    if(self == NULL) return NULL;
+    if(self == NULL) goto error;
     self->cobj = cobj;
 
+    goto success;
+
+error:
+success:
     return (PyObject*) self;
 }
 
@@ -21,26 +25,34 @@ HashCObj_AsVoidPtr(PyObject* self)
 int
 HashCObj_cmp(PyObject* self, PyObject* other)
 {
+    int ret = -1;
+
     if(!PyObject_TypeCheck(self, HashCObjType))
     {
         PyErr_SetString(PyExc_ValueError, "Invalid comparison object.");
-        return -1;
+        goto error;
     }
 
     if(!PyObject_TypeCheck(other, HashCObjType))
     {
         PyErr_SetString(PyExc_ValueError, "Invalid comparison object 2.");
-        return -1;
+        goto error;
     }
     
     if(((HashCObj*)self)->cobj == ((HashCObj*)other)->cobj)
     {
-        return 0;
+        ret = 0;
     }
     else
     {
-        return 1;
+        ret = 1;
     }
+
+    goto success;
+
+error:
+success:
+    return ret;
 }
 
 PyObject*

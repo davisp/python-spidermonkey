@@ -3,34 +3,38 @@
 JSString*
 py2js_string_obj(Context* cx, PyObject* str)
 {
-    JSString* rval = NULL;
     PyObject* conv = NULL;
     PyObject* encoded = NULL;
+    JSString* ret = NULL;
     char* bytes;
     Py_ssize_t len;
 
     if(PyString_Check(str))
     {
         conv = PyUnicode_FromEncodedObject(str, "utf-8", "replace");
-        if(conv == NULL) return NULL;
+        if(conv == NULL) goto error;
         str = conv;
     }
     else if(!PyUnicode_Check(str))
     {
         PyErr_SetString(PyExc_TypeError, "Invalid string conversion.");
-        return NULL;
+        goto error;
     }
 
     encoded = PyUnicode_AsEncodedString(str, "utf-16", "strict");
-    if(encoded == NULL) goto cleanup;
-    if(PyString_AsStringAndSize(encoded, &bytes, &len) < 0) goto cleanup;
-    if(len < 4) goto cleanup;
+    if(encoded == NULL) goto error;
+    if(PyString_AsStringAndSize(encoded, &bytes, &len) < 0) goto error;
+    if(len < 4) goto error;
 
-    rval = JS_NewUCStringCopyN(cx->cx, (jschar*) (bytes+2), (len/2)-1);
+    ret = JS_NewUCStringCopyN(cx->cx, (jschar*) (bytes+2), (len/2)-1);
     
-cleanup:
+    goto success;
+
+error:
+success:
     Py_XDECREF(conv);
-    return rval;
+    Py_XDECREF(encoded);
+    return ret;
 }
 
 jsval
