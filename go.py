@@ -74,5 +74,8 @@ cx.add_global("meander", meander)
 assert cx.execute("meander();").startswith("Meandering")
 assert cx.execute('var f = {"foo": "bar"}; f;') == {"foo": "bar"}
 
-import nose
-nose.run()
+def do_raise():
+    raise RuntimeError()
+cx.add_global("do_raise", do_raise)
+cx.execute("\n\ndo_raise();")
+

@@ -344,7 +344,6 @@ js_call(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
     if(tpl == NULL)
     {
         JS_ReportError(jscx, "Failed to build args value.");
-        PyErr_Clear();
         return JS_FALSE;
     }
     
@@ -354,7 +353,6 @@ js_call(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
     if(ret == NULL)
     {
         JS_ReportError(jscx, "Failed to call object.");
-        PyErr_Clear();
         return JS_FALSE;
     }
     
@@ -362,7 +360,6 @@ js_call(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
     if(*rval == JSVAL_VOID)
     {
         JS_ReportError(jscx, "Failed to convert Python return value.");
-        PyErr_Clear();
         Py_DECREF(ret);
         return JS_FALSE;
     }

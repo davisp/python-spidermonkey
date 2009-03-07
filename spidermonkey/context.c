@@ -143,6 +143,8 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
 {
     PyObject* obj = NULL;
     PyObject* ret = NULL;
+    JSContext* cx = NULL;
+    JSObject* root = NULL;
     JSString* script = NULL;
     jschar* schars = NULL;
     size_t slen;
@@ -156,11 +158,15 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
     schars = JS_GetStringChars(script);
     slen = JS_GetStringLength(script);
     
-    if(!JS_EvaluateUCScript(
-            self->cx, self->root, schars, slen, "Python", 0, &rval
-    ))
+    cx = self->cx;
+    root = self->root;
+    
+    if(!JS_EvaluateUCScript(cx, root, schars, slen, "Python", 0, &rval))
     {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to execute script.");
+        if(!PyErr_Occurred())
+        {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to execute script.");
+        }
         goto error;
     }
 

@@ -5,6 +5,7 @@
 #define PyMODINIT_FUNC void
 #endif
 
+PyObject* SpidermonkeyModule = NULL;
 PyTypeObject* RuntimeType = NULL;
 PyTypeObject* ContextType = NULL;
 PyTypeObject* ObjectType = NULL;
@@ -64,4 +65,6 @@ initspidermonkey(void)
     HashCObjType = &_HashCObjType;
     Py_INCREF(HashCObjType);
     // Don't add access from the module on purpose.
+
+    SpidermonkeyModule = m;
 }

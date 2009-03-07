@@ -24,6 +24,7 @@
 
 #include "hashcobj.h"
 
+extern PyObject* SpidermonkeyModule;
 extern PyTypeObject* RuntimeType;
 extern PyTypeObject* ContextType;
 extern PyTypeObject* ClassType;
