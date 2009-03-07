@@ -12,6 +12,7 @@ PyTypeObject* ObjectType = NULL;
 PyTypeObject* ArrayType = NULL;
 PyTypeObject* FunctionType = NULL;
 PyTypeObject* HashCObjType = NULL;
+PyObject* JSError = NULL;
 
 static PyMethodDef spidermonkey_methods[] = {
     {NULL}
@@ -66,5 +67,8 @@ initspidermonkey(void)
     Py_INCREF(HashCObjType);
     // Don't add access from the module on purpose.
 
+    JSError = PyErr_NewException("spidermonkey.JSError", NULL, NULL);
+    PyModule_AddObject(m, "JSError", JSError);
+    
     SpidermonkeyModule = m;
 }

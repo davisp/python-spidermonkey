@@ -118,7 +118,7 @@ Context_add_global(Context* self, PyObject* args, PyObject* kwargs)
 
     if(!JS_ValueToId(self->cx, jsk, &kid))
     {
-        PyErr_SetString(PyExc_AttributeError, "Failed to create value id.");
+        PyErr_SetString(PyExc_AttributeError, "Failed to create key id.");
         goto error;
     }
 
@@ -136,6 +136,49 @@ Context_add_global(Context* self, PyObject* args, PyObject* kwargs)
 error:
 success:
     Py_RETURN_NONE;
+}
+
+PyObject*
+Context_rem_global(Context* self, PyObject* args, PyObject* kwargs)
+{
+    PyObject* pykey = NULL;
+    PyObject* ret = NULL;
+    jsval jsk;
+    jsid kid;
+    jsval jsv;
+
+    if(!PyArg_ParseTuple(args, "O", &pykey)) goto error;
+
+    jsk = py2js(self, pykey);
+    if(jsk == JSVAL_VOID) goto error;
+
+    if(!JS_ValueToId(self->cx, jsk, &kid))
+    {
+        PyErr_SetString(JSError, "Failed to create key id.");
+    }
+
+    if(!js_GetProperty(self->cx, self->root, kid, &jsv))
+    {
+        PyErr_SetString(JSError, "Failed to get global property.");
+        goto error;
+    }
+    
+    ret = js2py(self, jsv);
+    if(ret == NULL) goto error;
+    
+    if(!js_DeleteProperty(self->cx, self->root, kid, &jsv))
+    {
+        PyErr_SetString(JSError, "Failed to remove global property.");
+        goto error;
+    }
+
+    JS_MaybeGC(self->cx);
+
+    goto success;
+
+error:
+success:
+    return ret;
 }
 
 PyObject*
@@ -161,7 +204,7 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
     cx = self->cx;
     root = self->root;
     
-    if(!JS_EvaluateUCScript(cx, root, schars, slen, "Python", 0, &rval))
+    if(!JS_EvaluateUCScript(cx, root, schars, slen, "<JavaScript>", 0, &rval))
     {
         if(!PyErr_Occurred())
         {
@@ -185,6 +228,13 @@ success:
     return ret;
 }
 
+PyObject*
+Context_gc(Context* self, PyObject* args, PyObject* kwargs)
+{
+    JS_GC(self->cx);
+    return (PyObject*) self;
+}
+
 static PyMemberDef Context_members[] = {
     {NULL}
 };
@@ -197,10 +247,22 @@ static PyMethodDef Context_methods[] = {
         "Install a global object in the JS VM."
     },
     {
+        "rem_global",
+        (PyCFunction)Context_rem_global,
+        METH_VARARGS,
+        "Remove a global object in the JS VM."
+    },
+    {
         "execute",
         (PyCFunction)Context_execute,
         METH_VARARGS,
         "Execute JavaScript source code."
+    },
+    {
+        "gc",
+        (PyCFunction)Context_gc,
+        METH_VARARGS,
+        "Force garbage collection of the JS context."
     },
     {NULL}
 };

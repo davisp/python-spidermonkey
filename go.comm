@@ -1,4 +1,4 @@
-run go.py
+run -c "import nose; nose.run()"
 bt
 continue
 bt

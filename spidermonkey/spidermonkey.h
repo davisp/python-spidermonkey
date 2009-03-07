@@ -32,5 +32,6 @@ extern PyTypeObject* ObjectType;
 extern PyTypeObject* ArrayType;
 extern PyTypeObject* FunctionType;
 extern PyTypeObject* HashCObjType;
+extern PyObject* JSError;
 
 #endif

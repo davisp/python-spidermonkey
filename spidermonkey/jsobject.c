@@ -89,6 +89,7 @@ Object_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     goto success;
 
 error:
+    ERROR("spidermonkey.Object.new");
 success:
     return (PyObject*) self;
 }

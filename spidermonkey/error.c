@@ -3,12 +3,10 @@
 #include "traceback.h" // Python
 
 void
-add_frame(const char* srcfile, const char* funcname,
-            const char* srcline, int linenum)
+add_frame(const char* srcfile, const char* funcname, int linenum)
 {
     PyObject* src = NULL;
     PyObject* func = NULL;
-    PyObject* srcln = NULL;
     PyObject* glbl = NULL;
     PyObject* tpl = NULL;
     PyObject* str = NULL;
@@ -20,10 +18,6 @@ add_frame(const char* srcfile, const char* funcname,
 
     func = PyString_FromString(funcname);
     if(func == NULL) goto error;
-
-    if(srcline != NULL) srcln = PyString_FromString(srcline);
-    else srcln = PyString_FromString("");
-    if(srcln == NULL) goto error;
     
     glbl = PyModule_GetDict(SpidermonkeyModule);
     if(glbl == NULL) goto error;
@@ -39,7 +33,7 @@ add_frame(const char* srcfile, const char* funcname,
         0,                      /*co_nlocals*/
         0,                      /*co_stacksize*/
         0,                      /*co_flags*/
-        srcln,                  /*co_code*/
+        str,                    /*co_code*/
         tpl,                    /*co_consts*/
         tpl,                    /*co_names*/
         tpl,                    /*co_varnames*/
@@ -51,7 +45,7 @@ add_frame(const char* srcfile, const char* funcname,
         str                     /*co_lnotab*/
     );
     if(code == NULL) goto error;
-    
+   
     frame = PyFrame_New(PyThreadState_Get(), code, glbl, NULL);
     if(frame == NULL) goto error;
     
@@ -73,13 +67,16 @@ success:
 void
 report_error_cb(JSContext* cx, const char* message, JSErrorReport* report)
 {
-    //If the root error is from Python, don't add a message.
-    if(PyErr_Occurred())
+    const char* srcfile = report->filename;
+    const char* mesg = message;
+
+    if(!PyErr_Occurred())
     {
-        add_frame(report->filename, message, report->linebuf, report->lineno);
+        PyErr_SetString(JSError, "Error executing JavaScript.");
     }
-    else
-    {
-        fprintf(stderr, "Error: %s\n", message);
-    }
+
+    if(srcfile == NULL) srcfile = "<JavaScript>";
+    if(mesg == NULL) mesg = "<Unknown Error>";
+    
+    add_frame(srcfile, mesg, report->lineno);
 }
