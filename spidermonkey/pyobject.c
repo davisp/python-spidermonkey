@@ -171,6 +171,14 @@ success:
 }
 
 // This is currently broken. Will come back to it.
+
+JSBool
+js_enumerate(JSContext* jscx, JSObject* jsobj)
+{
+    return JS_TRUE;
+}
+
+/*
 JSBool
 js_enumerate(JSContext* jscx, JSObject* jsobj,
                             JSIterateOp op, jsval* st, jsid* id)
@@ -179,7 +187,6 @@ js_enumerate(JSContext* jscx, JSObject* jsobj,
     PyObject* pyobj = NULL;
     PyObject* keys = NULL;
     jsval next = JSVAL_VOID;
-
     pycx = (Context*) JS_GetContextPrivate(jscx);
     if(pycx == NULL)
     {
@@ -270,6 +277,7 @@ js_enumerate(JSContext* jscx, JSObject* jsobj,
     JS_ReportError(jscx, "Unkown enumerate operation.");
     return JS_FALSE;
 }
+*/
 
 // I am not at all sure what I should have here.
 JSBool
@@ -472,12 +480,12 @@ create_class(Context* cx, PyTypeObject* type)
     strcpy((char*) classname, type->tp_name);
     jsclass->name = classname;
     
-    jsclass->flags = JSCLASS_HAS_RESERVED_SLOTS(1) | JSCLASS_NEW_ENUMERATE;
+    jsclass->flags = JSCLASS_HAS_RESERVED_SLOTS(1);
     jsclass->addProperty = js_add_prop;
     jsclass->delProperty = js_del_prop;
     jsclass->getProperty = js_get_prop;
     jsclass->setProperty = js_set_prop;
-    jsclass->enumerate = (JSEnumerateOp) js_enumerate;
+    jsclass->enumerate = js_enumerate;
     jsclass->resolve = js_resolve;
     jsclass->convert = JS_ConvertStub;
     jsclass->finalize = js_finalize;
