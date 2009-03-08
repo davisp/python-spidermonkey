@@ -170,116 +170,12 @@ success:
     return ret;
 }
 
-// This is currently broken. Will come back to it.
-
 JSBool
 js_enumerate(JSContext* jscx, JSObject* jsobj)
 {
     return JS_TRUE;
 }
 
-/*
-JSBool
-js_enumerate(JSContext* jscx, JSObject* jsobj,
-                            JSIterateOp op, jsval* st, jsid* id)
-{
-    Context* pycx = NULL;
-    PyObject* pyobj = NULL;
-    PyObject* keys = NULL;
-    jsval next = JSVAL_VOID;
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        fprintf(stderr, "no context\n");
-        JS_ReportError(jscx, "Failed to get Python context.");
-        return JS_FALSE;
-    }
-
-    if(op == JSENUMERATE_INIT)
-    {
-        pyobj = get_py_obj(jscx, jsobj);
-        if(PyMapping_Check(pyobj))
-        {
-            keys = PyMapping_Keys(pyobj);
-        }
-        else
-        {
-            keys = PyObject_Dir(pyobj);
-        }
-
-        if(keys == NULL)
-        {
-            fprintf(stderr, "no keys\n");
-            JS_ReportError(jscx, "Failed to get iterable items.");
-            return JS_FALSE;
-        }
-
-        *st = PRIVATE_TO_JSVAL(keys);
-        *id = INT_TO_JSVAL(PySequence_Length(keys));
-        return JS_TRUE;
-    }
-    else if(op == JSENUMERATE_NEXT)
-    {
-        keys = JSVAL_TO_PRIVATE(*st);
-        if(PySequence_Length(keys) < 1)
-        {
-            Py_DECREF(keys);
-            *st = JSVAL_NULL;
-            return JS_TRUE;
-        }
-
-        pyobj = PySequence_GetItem(keys, 0);
-        if(pyobj == NULL)
-        {
-            fprintf(stderr, "no next\n");
-            JS_ReportError(jscx, "Failed to get next key.");
-            PyErr_Clear();
-            return JS_FALSE;
-        }
-        
-        next = py2js(pycx, pyobj);
-        if(next == JSVAL_VOID)
-        {
-            fprintf(stderr, "no py2js\n");
-            JS_ReportError(jscx, "Failed to convert value to JS.");
-            Py_DECREF(pyobj);
-            PyErr_Clear();
-            return JS_FALSE;
-        }
-
-        Py_DECREF(pyobj);
-        
-        if(PySequence_DelItem(keys, 0) < 0)
-        {
-            fprintf(stderr, "no delitem\n");
-            JS_ReportError(jscx, "Failed to remove key from list.");
-            PyErr_Clear();
-            return JS_FALSE;
-        }
-
-        if(!JS_ValueToId(jscx, next, id))
-        {
-            fprintf(stderr, "no val to id\n");
-            JS_ReportError(jscx, "Failed to convert jsval to a jsid.");
-            return JS_FALSE;
-        }
-
-        return JS_TRUE;
-    }
-    else if(op == JSENUMERATE_DESTROY)
-    {
-        keys = (PyObject*) JSVAL_TO_PRIVATE(*st);
-        Py_DECREF(keys);
-        return JS_TRUE;
-    }
-
-    fprintf(stderr, "no op\n");
-    JS_ReportError(jscx, "Unkown enumerate operation.");
-    return JS_FALSE;
-}
-*/
-
-// I am not at all sure what I should have here.
 JSBool
 js_resolve(JSContext* cx, JSObject* obj, jsval key)
 {
