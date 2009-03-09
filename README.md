@@ -1,5 +1,4 @@
 
-
 Execute arbitrary JavaScript code from Python. Allows you to reference
 arbitrary Python objects and functions in the JavaScript VM
 
@@ -17,6 +16,15 @@ Installation
     *OR*
     
     $ sudo python setup.py develop
+
+Having Issues?
+==============
+
+Add issues to the Lighthouse project [here][lh].
+
+
+Examples
+========
 
 Basics
 ------
@@ -69,3 +77,5 @@ Previous Authors
 
 * John J. Lee
 * Atul Varma
+
+[lh] http://davisp.lighthouseapp.com/projects/26898-python-spidermonkey/overview
