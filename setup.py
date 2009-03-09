@@ -1,3 +1,10 @@
+#
+# Copyright 2009 Paul J. Davis <paul.joseph.davis@gmail.com>
+#
+# This file is part of the python-spidermonkey package released
+# under the MIT license.
+#
+
 """\
 Python/JavaScript bridge module, making use of Mozilla's spidermonkey
 JavaScript implementation.  Allows implementation of JavaScript classes,
