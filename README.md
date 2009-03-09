@@ -1,5 +1,4 @@
-Python-Spidermonkey
-===================
+
 
 Execute arbitrary JavaScript code from Python. Allows you to reference
 arbitrary Python objects and functions in the JavaScript VM
@@ -25,7 +24,7 @@ Basics
     >>> import spidermonkey
     >>> rt = spidermonkey.Runtime()
     >>> cx = rt.new_context()
-    >>> print cx.execute("var x = 3; x *= 4; x;")
+    >>> cx.execute("var x = 3; x *= 4; x;")
     12
     >>> class Orange(object):
     ...   def is_ripe(self,arg):
@@ -33,7 +32,7 @@ Basics
     ...
     >>> fruit = Orange()
     >>> cx.add_global("apple", fruit)
-    >>> print cx.execute('"Show me the " + apple.is_ripe("raisin");')
+    >>> cx.execute('"Show me the " + apple.is_ripe("raisin");')
     Show me the ripe raisin
 
 Playing with Classes
