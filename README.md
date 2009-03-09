@@ -78,4 +78,4 @@ Previous Authors
 * John J. Lee
 * Atul Varma
 
-[lh] http://davisp.lighthouseapp.com/projects/26898-python-spidermonkey/overview
+[lh]: http://davisp.lighthouseapp.com/projects/26898-python-spidermonkey/overview
