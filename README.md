@@ -2,9 +2,27 @@
 Execute arbitrary JavaScript code from Python. Allows you to reference
 arbitrary Python objects and functions in the JavaScript VM
 
-Installation
+Requirements
 ============
 
+The nspr (Netscapre Portable Runtime) library is required for building the
+Spidermonkey sources. You should be able to grab it from your package manager
+of choice with something like the following:
+
+Mac OS X:
+
+    $ sudo port install nspr
+
+Debian/Ubuntu:
+
+    $ sudo apt-get install libnspr4-dev
+
+Alternatively you can build from [source][nspr]. If you choose this route make
+sure that the nspr-config command is on your $PATH when running the install
+commands below.
+
+Installation
+============
 
     $ git clone git://github.com/davisp/python-spidermonkey.git
     $ cd python-spidermonkey
@@ -79,3 +97,4 @@ Previous Authors
 * Atul Varma
 
 [lh]: http://davisp.lighthouseapp.com/projects/26898-python-spidermonkey/overview
+[nspr]: ftp://ftp.mozilla.org/pub/mozilla.org/nspr/releases
