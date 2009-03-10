@@ -1,7 +1,10 @@
 include MANIFEST.in
 include LICENSE
 include README
+include ez_setup.py
+include go
+include go.comm
+include setup.py
 include spidermonkey/*.*
 include spidermonkey/libjs/*.*
-include setup.py
 include tests/*.py
