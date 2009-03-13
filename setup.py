@@ -69,7 +69,7 @@ def platform_config():
 
 setup(
     name = "python-spidermonkey",
-    version = "0.0.4",
+    version = "0.0.5",
     license = "MIT",
     author = "Paul J. Davis",
     author_email = "paul.joseph.davis@gmail.com",
