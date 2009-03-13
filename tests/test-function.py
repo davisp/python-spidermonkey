@@ -3,6 +3,7 @@
 # This file is part of the python-spidermonkey package released
 # under the MIT license.
 import t
+import threading
 
 @t.cx()
 def test_call_js_func(cx):
@@ -32,3 +33,53 @@ def test_global_function(cx):
         return "Meandering enthusiastically!"
     cx.add_global("meander", meander)
     t.eq(cx.execute("meander();"), "Meandering enthusiastically!")
+
+@t.cx()
+def test_bound_method(cx):
+    class Foo(object):
+        def callme(self, arg):
+            return "I am serious. And don't call me Shirley."
+    f = Foo()
+    cx.add_global("func", f.callme)
+    ret = cx.execute('func("Surely you can\'t be serious.");')
+    t.eq("Shirley" in ret, True)
+
+@t.cx()
+def test_bound_method_no_return(cx):
+    class Foo(object):
+        def callme(self):
+            pass
+    f = Foo()
+    cx.add_global("func", f.callme)
+    ret = cx.execute("func()")
+    t.eq(ret, None)
+
+@t.cx()
+def test_bound_method_from_js_func(cx):
+    class Foo(object):
+        def callme(self):
+            return 4
+    f = Foo()
+    cx.add_global("dude", f.callme)
+    func = cx.execute("function(a) {return a * dude();}")
+    ret = func(3)
+    t.eq(ret, 12)
+
+def test_bound_method_in_thread():
+    class Foo(object):
+        def __init__(self):
+            self.t = threading.Thread(target=self.run)
+            self.t.start()
+        def run(self):
+            rt = t.spidermonkey.Runtime()
+            cx = rt.new_context()
+            cx.add_global("stuff", self.call)
+            ret = cx.execute("stuff() * 4;")
+            t.eq(ret, 8)
+        def call(self):
+            print "Called!"
+            return 2
+    f = Foo()
+    f.t.join()
+            
+            

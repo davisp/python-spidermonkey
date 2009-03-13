@@ -232,11 +232,7 @@ mk_args_tuple(Context* pycx, JSContext* jscx, uintN argc, jsval* argv)
     {
         tmp = js2py(pycx, argv[idx]);
         if(tmp == NULL) goto error;
-        if(PyTuple_SetItem(tpl, idx, tmp) != 0)
-        {
-            Py_DECREF(tmp);
-            goto error;
-        }
+        PyTuple_SET_ITEM(tpl, idx, tmp);
     }
 
     goto success;
@@ -277,6 +273,10 @@ js_call(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
     ret = PyObject_Call(pyobj, tpl, NULL);
     if(ret == NULL)
     {
+        if(!PyErr_Occurred())
+        {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to call object.");
+        }
         JS_ReportError(jscx, "Failed to call object.");
         goto error;
     }
@@ -439,6 +439,13 @@ py2js_object(Context* cx, PyObject* pyobj)
     
     attached = pyobj;
     Py_INCREF(attached);
+
+    // I really need to revisit this.
+    if(PyMethod_Check(pyobj))
+    {
+        Py_INCREF(attached);
+    }
+    
     pyval = PRIVATE_TO_JSVAL(attached);
     if(!JS_SetReservedSlot(cx->cx, jsobj, 0, pyval))
     {
