@@ -212,7 +212,7 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
     cx = self->cx;
     root = self->root;
     
-    if(!JS_EvaluateUCScript(cx, root, schars, slen, "<JavaScript>", 0, &rval))
+    if(!JS_EvaluateUCScript(cx, root, schars, slen, "<JavaScript>", 1, &rval))
     {
         if(!PyErr_Occurred())
         {
