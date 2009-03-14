@@ -77,7 +77,6 @@ def test_bound_method_in_thread():
             ret = cx.execute("stuff() * 4;")
             t.eq(ret, 8)
         def call(self):
-            print "Called!"
             return 2
     f = Foo()
     f.t.join()

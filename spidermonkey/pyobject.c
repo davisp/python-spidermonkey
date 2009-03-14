@@ -438,14 +438,8 @@ py2js_object(Context* cx, PyObject* pyobj)
     }
     
     attached = pyobj;
+    // INCREF for the value stored in JS
     Py_INCREF(attached);
-
-    // I really need to revisit this.
-    if(PyMethod_Check(pyobj))
-    {
-        Py_INCREF(attached);
-    }
-    
     pyval = PRIVATE_TO_JSVAL(attached);
     if(!JS_SetReservedSlot(cx->cx, jsobj, 0, pyval))
     {
@@ -477,7 +471,6 @@ py2js_object(Context* cx, PyObject* pyobj)
 
 error:
 success:
-    Py_XDECREF(attached);
     return ret;
 }
 
