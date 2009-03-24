@@ -32,7 +32,17 @@ py2js_string_obj(Context* cx, PyObject* str)
     encoded = PyUnicode_AsEncodedString(str, "utf-16", "strict");
     if(encoded == NULL) goto error;
     if(PyString_AsStringAndSize(encoded, &bytes, &len) < 0) goto error;
-    if(len < 4) goto error;
+    if(len < 2)
+    {
+        PyErr_SetString(PyExc_ValueError, "Failed to find byte-order mark.");
+        goto error;
+    }
+
+    if(((unsigned short*) bytes)[0] != 0xFEFF)
+    {
+        PyErr_SetString(PyExc_ValueError, "Invalid UTF-16 BOM");
+        goto error;
+    }
 
     ret = JS_NewUCStringCopyN(cx->cx, (jschar*) (bytes+2), (len/2)-1);
     

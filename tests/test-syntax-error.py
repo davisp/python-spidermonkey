@@ -11,7 +11,7 @@ ERROR = 'File "<JavaScript>", line 1, in ' \
 @t.cx()
 def test_syntax_error(cx):
     try:
-        cx.execute("function(asdf;");
+        cx.execute("function(asdf;")
         t.eq(1, 0)
     except:
         line = traceback.format_exc().split("\n")[-3].strip()
