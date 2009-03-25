@@ -195,8 +195,7 @@ js_finalize(JSContext* jscx, JSObject* jsobj)
 {
     Context* pycx = (Context*) JS_GetContextPrivate(jscx);
     PyObject* pyobj = NULL;
-    
-    
+   
     if(pycx == NULL)
     {
         // Not much else we can do but yell.
@@ -337,7 +336,6 @@ js_ctor(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
         JS_ReportError(jscx, "Failed to construct object.");
         goto error;
     }
-    Py_INCREF(ret);
     
     *rval = py2js(pycx, ret);
     if(*rval == JSVAL_VOID)
@@ -470,6 +468,7 @@ py2js_object(Context* cx, PyObject* pyobj)
     goto success;
 
 error:
+    Py_XDECREF(attached);
 success:
     return ret;
 }
