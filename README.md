@@ -5,9 +5,28 @@ arbitrary Python objects and functions in the JavaScript VM
 Requirements
 ============
 
-The nspr (Netscapre Portable Runtime) library is required for building the
-Spidermonkey sources. You should be able to grab it from your package manager
-of choice with something like the following:
+Python Development Files
+------------------------
+
+Mac OS X:
+
+If you installed Python via port then the headers should already be installed.
+I have not heard reports of problems from people using the bundled
+interpreters.
+
+Debian/Ubuntu:
+
+    $ sudo apt-get install pythonX.X-dev
+
+Where X.X is the version of Python you are using. I have not tested
+python-spidermonkey on Py3K so it may be horribly broken there.
+
+Netscape Portable Runtime (nspr)
+--------------------------------
+
+The nspr library is required for building the Spidermonkey sources. You should
+be able to grab it from your package manager of choice with something like the
+following:
 
 Mac OS X:
 
