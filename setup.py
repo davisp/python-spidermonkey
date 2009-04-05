@@ -58,12 +58,12 @@ def platform_config():
    
     config = nspr_config()
     config["include_dirs"].append("spidermonkey/%s-%s" % (sysname, machine))
-    config["extra_compile_args"] = [
+    config["extra_compile_args"].extend([
         "-DJS_THREADSAFE",
         "-DPOSIX_SOURCE",
         "-D_BSD_SOURCE",
         "-Wno-strict-prototypes"
-    ]
+    ])
 
     if sysname == "Linux":
         config["extra_compile_args"].extend([
