@@ -51,7 +51,7 @@ def nspr_config():
     for b in bits:
         for p in prfx:
             if b.startswith(p):
-                name, trim = prfx[b[:2]]
+                name, trim = prfx[p]
                 ret[name].append(b[trim:])
     return ret
 
