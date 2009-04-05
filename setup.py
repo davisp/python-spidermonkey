@@ -39,17 +39,20 @@ def nspr_config():
         "include_dirs": [],
         "library_dirs": [],
         "libraries": [],
-        "extra_compile_args": []
+        "extra_compile_args": [],
+        "extra_link_args": []
     }
     prfx = {
         "-I": ("include_dirs", 2),
         "-L": ("library_dirs", 2),
         "-l": ("libraries", 2),
-        "-W": ("extra_compile_args", 0)
+        "-Wl": ("extra_link_args", 0)
     }
     for b in bits:
-        name, trim = prfx[b[:2]]
-        ret[name].append(b[trim:])
+        for p in prfx:
+            if b.startswith(p):
+                name, trim = prfx[b[:2]]
+                ret[name].append(b[trim:])
     return ret
 
 def platform_config():
