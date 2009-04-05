@@ -110,6 +110,7 @@ setup(
     
     setup_requires = [
         'setuptools>=0.6c8',
+        'nose>=0.10.0',
     ],
 
     ext_modules =  [
