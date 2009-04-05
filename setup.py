@@ -35,7 +35,12 @@ def nspr_config():
     if pipe.wait() != 0:
         raise RuntimeError("Failed to get nspr config.")
     bits = stdout.split()
-    ret = {"include_dirs": [], "library_dirs": [], "libraries": []}
+    ret = {
+        "include_dirs": [],
+        "library_dirs": [],
+        "libraries": [],
+        "extra_compile_args": []
+    }
     prfx = {
         "-I": ("include_dirs", 2),
         "-L": ("library_dirs", 2),
