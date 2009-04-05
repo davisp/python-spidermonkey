@@ -36,9 +36,15 @@ def nspr_config():
         raise RuntimeError("Failed to get nspr config.")
     bits = stdout.split()
     ret = {"include_dirs": [], "library_dirs": [], "libraries": []}
-    prfx = {"-I": "include_dirs", "-L": "library_dirs", "-l": "libraries"}
+    prfx = {
+        "-I": ("include_dirs", 2),
+        "-L": ("library_dirs", 2),
+        "-l": ("libraries", 2),
+        "-W": ("extra_compile_args", 0)
+    }
     for b in bits:
-        ret[prfx[b[:2]]].append(b[2:])
+        name, trim = prfx[b[:2]]
+        ret[name].append(b[trim:])
     return ret
 
 def platform_config():
