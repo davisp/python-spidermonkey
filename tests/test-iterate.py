@@ -4,26 +4,33 @@
 # under the MIT license.
 import t
 
-class Foo(object):
-    def __init__(self):
-        self.blam = 8
-        self.zing = "yessiree"
+@t.rt()
+def test_iter_py(rt):
+    pairs = [
+        ({"foo": "bar", "baz": "bam"}, ["foo", "baz"]),
+        (["a", "b", "c"], [0, 1, 2])
+    ]
+    def check(a, b):
+        cx = rt.new_context()
+        cx.add_global("zip", a)
+        js = """
+            var ret = [];
+            for(var v in zip) {ret.push(v);}
+            ret;
+        """
+        t.eq(cx.execute(js), b)
+    map(lambda x: check(*x), pairs)
 
-@t.glbl("zip", Foo())
-def test_iter_py(cx, glbl):
-    js = """
-        var ret = [];
-        for(var v in zip) {
-            ret.push(v)
-        }
-        ret;
-    """
-    t.eq(cx.execute(js), ["blam", "zing"])
-
-@t.cx()
-def test_iter_js(cx):
-    ret = cx.execute('var f = {"foo": 1, "domino": "daily"}; f;')
-    keys = [k for k in ret]
-    keys.sort()
-    t.eq(keys, ["domino", "foo"])
-
+@t.rt()
+def test_iter_js(rt):
+    pairs = [
+        ('var f = {"foo": 1, "domino": "daily"}; f;', ["domino", "foo"]),
+        ('["foo", 1, "bing"]', [0, 1, 2])
+    ]
+    def check(a, b):
+        cx = rt.new_context()
+        ret = cx.execute(a)
+        data = [k for k in ret]
+        data.sort()
+        t.eq(data, b)
+    map(lambda x: check(*x), pairs)

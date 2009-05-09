@@ -10,6 +10,7 @@
 #define PYSM_INTEGER_H
 
 jsval py2js_integer(Context* cx, PyObject* obj);
+jsval long2js_integer(Context* cx, long val);
 PyObject* js2py_integer(Context* cx, jsval val);
 
 #endif

@@ -22,6 +22,7 @@
 #include "double.h"
 
 #include "pyobject.h"
+#include "pyiter.h"
 
 #include "jsobject.h"
 #include "jsarray.h"
