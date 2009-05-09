@@ -7,6 +7,7 @@
  */
 
 #include "spidermonkey.h"
+#include "libjs/jsobj.h"
 
 /*
     This is a fairly unsafe operation in so much as
@@ -82,21 +83,43 @@ js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* val)
     Context* pycx = NULL;
     PyObject* pyobj = NULL;
     PyObject* pykey = NULL;
+    PyObject* utf8 = NULL;
     PyObject* pyval = NULL;
     JSBool ret = JS_FALSE;
-   
+    const char* data;
+
     pycx = (Context*) JS_GetContextPrivate(jscx);
     if(pycx == NULL)
     {
         PyErr_SetString(PyExc_RuntimeError, "Failed to get JS Context.");
-        goto error;
+        goto done;
     }
     
     pyobj = get_py_obj(jscx, jsobj);
-    if(pyobj == NULL) goto error;
+    if(pyobj == NULL) goto done;
     
     pykey = js2py(pycx, key);
-    if(pykey == NULL) goto error;
+    if(pykey == NULL) goto done;
+
+    utf8 = PyUnicode_AsUTF8String(pykey);
+    if(utf8 == NULL) goto done;
+
+    // Yeah. It's ugly as sin.
+    if(PyString_Check(utf8))
+    {
+        data = PyString_AsString(utf8);
+        if(data == NULL) goto done;
+
+        if(strcmp("__iterator__", data) == 0)
+        {
+            if(!new_py_iter(pycx, pyobj, val)) goto done;
+            if(*val != JSVAL_VOID)
+            {
+                ret = JS_TRUE;
+                goto done;
+            }
+        }
+    }
 
     pyval = PyObject_GetItem(pyobj, pykey);
     if(pyval == NULL)
@@ -108,20 +131,19 @@ js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* val)
             PyErr_Clear();
             ret = JS_TRUE;
             *val = JSVAL_VOID;
-            goto success;
+            goto done;
         }
     }
 
     *val = py2js(pycx, pyval);
-    if(*val == JSVAL_VOID) goto error;
+    if(*val == JSVAL_VOID) goto done;
     ret = JS_TRUE;
-    goto success;
 
-error:
-success:
+done:
     Py_XDECREF(pykey);
     Py_XDECREF(pyval);
-    
+    Py_XDECREF(utf8);
+
     return ret;
 }
 
@@ -176,18 +198,6 @@ success:
     Py_XDECREF(pykey);
     Py_XDECREF(pyval);
     return ret;
-}
-
-JSBool
-js_enumerate(JSContext* jscx, JSObject* jsobj)
-{
-    return JS_TRUE;
-}
-
-JSBool
-js_resolve(JSContext* cx, JSObject* obj, jsval key)
-{
-    return JS_TRUE;
 }
 
 void
@@ -355,14 +365,15 @@ success:
 }
 
 JSClass*
-create_class(Context* cx, PyTypeObject* type)
+create_class(Context* cx, PyObject* pyobj)
 {
     PyObject* curr = NULL;
     JSClass* jsclass = NULL;
     JSClass* ret = NULL;
     char* classname = NULL;
-    
-    curr = Context_get_class(cx, type->tp_name);
+    int flags = JSCLASS_HAS_RESERVED_SLOTS(1);
+
+    curr = Context_get_class(cx, pyobj->ob_type->tp_name);
     if(curr != NULL) return (JSClass*) HashCObj_AsVoidPtr(curr);
 
     jsclass = (JSClass*) malloc(sizeof(JSClass));
@@ -372,29 +383,28 @@ create_class(Context* cx, PyTypeObject* type)
         goto error;
     }
    
-    classname = (char*) malloc(strlen(type->tp_name)*sizeof(char));
+    classname = (char*) malloc(strlen(pyobj->ob_type->tp_name)*sizeof(char));
     if(classname == NULL)
     {
         PyErr_NoMemory();
         goto error;
     }
     
-    strcpy((char*) classname, type->tp_name);
+    strcpy((char*) classname, pyobj->ob_type->tp_name);
     jsclass->name = classname;
     
-    jsclass->flags = JSCLASS_HAS_RESERVED_SLOTS(1);
+    jsclass->flags = flags;
     jsclass->addProperty = js_add_prop;
     jsclass->delProperty = js_del_prop;
     jsclass->getProperty = js_get_prop;
     jsclass->setProperty = js_set_prop;
-    jsclass->enumerate = js_enumerate;
-    jsclass->resolve = js_resolve;
+    jsclass->enumerate = JS_EnumerateStub;
+    jsclass->resolve = JS_ResolveStub;
     jsclass->convert = JS_ConvertStub;
     jsclass->finalize = js_finalize;
     jsclass->getObjectOps = NULL;
     jsclass->checkAccess = NULL;
     jsclass->call = js_call;
-    //jsclass->construct = NULL;
     jsclass->construct = js_ctor;
     jsclass->xdrObject = NULL;
     jsclass->hasInstance = NULL;
@@ -403,7 +413,7 @@ create_class(Context* cx, PyTypeObject* type)
     
     curr = HashCObj_FromVoidPtr(jsclass);
     if(curr == NULL) goto error;
-    if(Context_add_class(cx, type->tp_name, curr) < 0) goto error;
+    if(Context_add_class(cx, pyobj->ob_type->tp_name, curr) < 0) goto error;
 
     ret = jsclass;
     goto success;
@@ -425,7 +435,7 @@ py2js_object(Context* cx, PyObject* pyobj)
     jsval pyval;
     jsval ret = JSVAL_VOID;
    
-    klass = create_class(cx, pyobj->ob_type);
+    klass = create_class(cx, pyobj);
     if(klass == NULL) goto error;
 
     jsobj = JS_NewObject(cx->cx, klass, NULL, NULL);
@@ -434,7 +444,8 @@ py2js_object(Context* cx, PyObject* pyobj)
         PyErr_SetString(PyExc_RuntimeError, "Failed to create JS object.");
         goto error;
     }
-    
+
+    // do the attached = pyobj dance to only DECREF if we get passed INCREF
     attached = pyobj;
     // INCREF for the value stored in JS
     Py_INCREF(attached);

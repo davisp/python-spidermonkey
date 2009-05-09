@@ -1,3 +1,3 @@
 #! /bin/bash
-python setup.py build
-gdb --command=go.comm --batch python2.5
+#python setup.py build
+gdb --command=go.comm --batch python
