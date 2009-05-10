@@ -48,8 +48,18 @@ Runtime_new_context(Runtime* self, PyObject* args, PyObject* kwargs)
 {
     PyObject* cx = NULL;
     PyObject* tpl = NULL;
+    PyObject* global = NULL;
+
+    if(!PyArg_ParseTuple(args, "|O", &global)) goto error;
     
-    tpl = Py_BuildValue("(O)", self);
+    if(global == NULL)
+    {
+        tpl = Py_BuildValue("(O)", self);
+    }
+    else
+    {
+        tpl = Py_BuildValue("(OO)", self, global);
+    }
     if(tpl == NULL) goto error;
     
     cx = PyObject_CallObject((PyObject*) ContextType, tpl);

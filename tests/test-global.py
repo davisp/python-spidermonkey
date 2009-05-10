@@ -59,3 +59,41 @@ def test_js_rem_attr(cx, glbl):
     t.has(glbl, "blam")
     cx.execute("delete rain.blam;")
     t.hasnot(glbl, "blam")
+
+@t.rt()
+def test_py_with_global(rt):
+    rt.new_context({})
+
+@t.rt()
+def test_py_with_invalid_global(rt):
+    t.raises(TypeError, rt.new_context, "Break!")
+
+@t.rt()
+def test_py_get_global(rt):
+    glbl = {"foo": "bar"}
+    cx = rt.new_context(glbl)
+    t.eq(cx.execute("foo;"), "bar")
+
+@t.rt()
+def test_py_set_global(rt):
+    glbl = {}
+    cx = rt.new_context(glbl)
+    cx.execute("foo = 71;")
+    t.eq(cx.execute("foo;"), 71);
+    t.eq(glbl["foo"], 71)
+
+class ActiveGlobal(object):
+    def __init__(self):
+        self.data = {}
+    def __getitem__(self, key):
+        return self.data[key]
+    def __setitem__(self, key, value):
+        self.data[key] = value * 2
+
+@t.rt()
+def test_py_with_active_global(rt):
+    glbl = ActiveGlobal()
+    cx = rt.new_context(glbl)
+    cx.execute("foo = 4;")
+    t.eq(cx.execute("foo;"), 8)
+    t.eq(glbl.data["foo"], 8);

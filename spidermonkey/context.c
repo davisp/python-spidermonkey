@@ -9,16 +9,151 @@
 #include "spidermonkey.h"
 #include "libjs/jsobj.h"
 
+JSBool
+get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
+{
+    Context* pycx = NULL;
+    PyObject* pykey = NULL;
+    PyObject* pyval = NULL;
+    JSBool ret = JS_FALSE;
+
+    pycx = (Context*) JS_GetContextPrivate(jscx);
+    if(pycx == NULL)
+    {
+        JS_ReportError(jscx, "Failed to get Python context.");
+        goto done;
+    }
+
+    // Bail if there's no registered global handler.
+    if(pycx->global == NULL)
+    {
+        ret = JS_TRUE;
+        goto done;
+    }
+
+    pykey = js2py(pycx, key);
+    if(pykey == NULL) goto done;
+
+    pyval = PyObject_GetItem(pycx->global, pykey);
+    if(pyval == NULL)
+    {
+        if(PyErr_GivenExceptionMatches(PyErr_Occurred(), PyExc_KeyError))
+        {
+            PyErr_Clear();
+            ret = JS_TRUE;
+        }
+        goto done;
+    }
+
+    *rval = py2js(pycx, pyval);
+    if(*rval == JSVAL_VOID) goto done;
+    ret = JS_TRUE;
+
+done:
+    Py_XDECREF(pykey);
+    Py_XDECREF(pyval);
+    return ret;
+}
+
+JSBool
+set_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
+{
+    Context* pycx = NULL;
+    PyObject* pykey = NULL;
+    PyObject* pyval = NULL;
+    JSBool ret = JS_FALSE;
+
+    pycx = (Context*) JS_GetContextPrivate(jscx);
+    if(pycx == NULL)
+    {
+        JS_ReportError(jscx, "Failed to get Python context.");
+        goto done;
+    }
+
+    // Bail if there's no registered global handler.
+    if(pycx->global == NULL)
+    {
+        ret = JS_TRUE;
+        goto done;
+    }
+
+    pykey = js2py(pycx, key);
+    if(pykey == NULL) goto done;
+
+    pyval = js2py(pycx, *rval);
+    if(pyval == NULL) goto done;
+
+    if(PyObject_SetItem(pycx->global, pykey, pyval) < 0) goto done;
+
+    ret = JS_TRUE;
+
+done:
+    Py_XDECREF(pykey);
+    Py_XDECREF(pyval);
+    return ret;
+}
+
+JSBool
+resolve(JSContext* jscx, JSObject* jsobj, jsval key)
+{
+    Context* pycx = NULL;
+    PyObject* pykey = NULL;
+    jsid pid;
+    JSBool ret = JS_FALSE;
+
+    pycx = (Context*) JS_GetContextPrivate(jscx);
+    if(pycx == NULL)
+    {
+        JS_ReportError(jscx, "Failed to get Python context.");
+        goto done;
+    }
+
+    // Bail if there's no registered global handler.
+    if(pycx->global == NULL)
+    {
+        ret = JS_TRUE;
+        goto done;
+    }
+
+    pykey = js2py(pycx, key);
+    if(pykey == NULL) goto done;
+
+    if(!PyMapping_HasKey(pycx->global, pykey))
+    {
+        ret = JS_TRUE;
+        goto done;
+    }
+
+    if(!JS_ValueToId(jscx, key, &pid))
+    {
+        JS_ReportError(jscx, "Failed to convert property id.");
+        goto done;
+    }
+
+    if(!js_DefineProperty(jscx, pycx->root, pid, JSVAL_VOID, NULL, NULL,
+                            JSPROP_SHARED, NULL))
+    {
+        JS_ReportError(jscx, "Failed to define property.");
+        goto done;
+    }
+
+    ret = JS_TRUE;
+
+done:
+    Py_XDECREF(pykey);
+    return ret;
+}
+
 static JSClass
 js_global_class = {
     "JSGlobalObjectClass",
     JSCLASS_GLOBAL_FLAGS,
     JS_PropertyStub,
     JS_PropertyStub,
-    JS_PropertyStub,
-    JS_PropertyStub,
+    get_prop,
+    set_prop,
     JS_EnumerateStub,
-    JS_ResolveStub,
+    resolve,
     JS_ConvertStub,
     JS_FinalizeStub,
     JSCLASS_NO_OPTIONAL_MEMBERS
@@ -29,8 +164,21 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 {
     Context* self = NULL;
     Runtime* runtime = NULL;
+    PyObject* global = NULL;
 
-    if(!PyArg_ParseTuple(args, "O!", RuntimeType, &runtime)) goto error;
+    if(!PyArg_ParseTuple(
+        args,
+        "O!|O",
+        RuntimeType, &runtime,
+        &global
+    )) goto error;
+
+    if(global != NULL && !PyMapping_Check(global))
+    {
+        PyErr_SetString(PyExc_TypeError,
+                            "Global handler must provide item access.");
+        goto error;
+    }
 
     self = (Context*) type->tp_alloc(type, 0);
     if(self == NULL) goto error;
@@ -52,19 +200,6 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 
     JS_BeginRequest(self->cx);
 
-    self->root = JS_NewObject(self->cx, &js_global_class, NULL, NULL);
-    if(self->root == NULL)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Error creating root object.");
-        goto error;
-    }
-
-    if(!JS_InitStandardClasses(self->cx, self->root))
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Error initializing JS VM.");
-        goto error;
-    }
-      
     /*
      *  Notice that we don't add a ref to the Python context for
      *  the copy stored on the JSContext*. I'm pretty sure this
@@ -78,6 +213,27 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
      *
      */
     JS_SetContextPrivate(self->cx, self);
+
+    // Setup the root of the property lookup doodad.
+    self->root = JS_NewObject(self->cx, &js_global_class, NULL, NULL);
+    if(self->root == NULL)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Error creating root object.");
+        goto error;
+    }
+
+    if(!JS_InitStandardClasses(self->cx, self->root))
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Error initializing JS VM.");
+        goto error;
+    }
+
+    // Don't setup the global handler until after the standard classes
+    // have been initialized.
+    // XXX: Does anyone know if finalize is called if new fails?
+    if(global != NULL) Py_INCREF(global);
+    self->global = global;
+
     JS_SetErrorReporter(self->cx, report_error_cb);
     
     Py_INCREF(runtime);
@@ -109,6 +265,7 @@ Context_dealloc(Context* self)
         JS_DestroyContext(self->cx);
     }
 
+    Py_XDECREF(self->global);
     Py_XDECREF(self->objects);
     Py_XDECREF(self->classes);
     Py_DECREF(self->rt);
