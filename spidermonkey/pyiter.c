@@ -139,7 +139,6 @@ def_next(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
 
     if(PyMapping_Check(pyobj) && foreach)
     {
-        fprintf(stderr, "IS FOR EACH ON MAPPING\n");
         value = PyObject_GetItem(pyobj, next);
         if(value == NULL)
         {
@@ -238,7 +237,6 @@ seq_next(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
 
     if(foreach)
     {
-        fprintf(stderr, "IS FOR EACH ON SEQUENCE\n");
         value = PyObject_GetItem(pyobj, iter);
         if(value == NULL)
         {
