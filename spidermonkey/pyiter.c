@@ -29,6 +29,8 @@ finalize(JSContext* jscx, JSObject* jsobj)
     PyObject* pyobj = NULL;
     PyObject* pyiter = NULL;
 
+    JS_BeginRequest(jscx);
+
     if(pycx == NULL)
     {
         fprintf(stderr, "*** NO PYTHON CONTEXT ***\n");
@@ -40,6 +42,8 @@ finalize(JSContext* jscx, JSObject* jsobj)
 
     pyiter = get_js_slot(jscx, jsobj, 1);
     Py_DECREF(pyiter);
+
+    JS_EndRequest(jscx);
 
     Py_DECREF(pycx);
 }

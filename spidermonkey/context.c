@@ -40,7 +40,6 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     self->classes = (PyDictObject*) PyDict_New();
     if(self->classes == NULL) goto error;
 
-
     self->objects = (PySetObject*) PySet_New(NULL);
     if(self->objects == NULL) goto error;
 
@@ -50,6 +49,8 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
         PyErr_SetString(PyExc_RuntimeError, "Failed to create JSContext.");
         goto error;
     }
+
+    JS_BeginRequest(self->cx);
 
     self->root = JS_NewObject(self->cx, &js_global_class, NULL, NULL);
     if(self->root == NULL)
@@ -85,9 +86,12 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     goto success;
 
 error:
+    if(self != NULL && self->cx != NULL) JS_EndRequest(self->cx);
     Py_XDECREF(self);
+    self = NULL;
 
 success:
+    if(self != NULL && self->cx != NULL) JS_EndRequest(self->cx);
     return (PyObject*) self;
 }
 
@@ -119,6 +123,8 @@ Context_add_global(Context* self, PyObject* args, PyObject* kwargs)
     jsid kid;
     jsval jsv;
 
+    JS_BeginRequest(self->cx);
+
     if(!PyArg_ParseTuple(args, "OO", &pykey, &pyval)) goto error;
 
     jsk = py2js(self, pykey);
@@ -143,6 +149,7 @@ Context_add_global(Context* self, PyObject* args, PyObject* kwargs)
 
 error:
 success:
+    JS_EndRequest(self->cx);
     Py_RETURN_NONE;
 }
 
@@ -154,6 +161,8 @@ Context_rem_global(Context* self, PyObject* args, PyObject* kwargs)
     jsval jsk;
     jsid kid;
     jsval jsv;
+
+    JS_BeginRequest(self->cx);
 
     if(!PyArg_ParseTuple(args, "O", &pykey)) goto error;
 
@@ -186,6 +195,7 @@ Context_rem_global(Context* self, PyObject* args, PyObject* kwargs)
 
 error:
 success:
+    JS_EndRequest(self->cx);
     return ret;
 }
 
@@ -201,6 +211,7 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
     size_t slen;
     jsval rval;
 
+    JS_BeginRequest(self->cx);
     if(!PyArg_ParseTuple(args, "O", &obj)) goto error;
     
     script = py2js_string_obj(self, obj);
@@ -228,10 +239,13 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
     }
 
     ret = js2py(self, rval);
+    
+    JS_EndRequest(self->cx);
     JS_MaybeGC(self->cx);
     goto success;
 
 error:
+    JS_EndRequest(self->cx);
 success:
     return ret;
 }

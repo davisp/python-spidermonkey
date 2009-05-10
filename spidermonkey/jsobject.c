@@ -23,6 +23,8 @@ make_object(PyTypeObject* type, Context* cx, jsval val)
     jsval priv;
     int found;
 
+    JS_BeginRequest(cx->cx);
+
     // Unwrapping if its wrapped.
     obj = JSVAL_TO_OBJECT(val);
     klass = JS_GetClass(cx->cx, obj);
@@ -70,6 +72,7 @@ error:
 
 success:
     Py_XDECREF(tpl);
+    JS_EndRequest(cx->cx);
     return (PyObject*) ret;
 }
 
@@ -113,7 +116,9 @@ Object_dealloc(Object* self)
 {
     if(self->val != JSVAL_VOID)
     {
+        JS_BeginRequest(self->cx->cx);
         JS_RemoveRoot(self->cx->cx, &(self->val));
+        JS_EndRequest(self->cx->cx);
     }
    
     Py_XDECREF(self->cx);
@@ -127,16 +132,20 @@ Object_repr(Object* self)
     jschar* rchars = NULL;
     size_t rlen;
     
+    JS_BeginRequest(self->cx->cx);
+
     repr = JS_ValueToString(self->cx->cx, self->val);
     if(repr == NULL)
     {
         PyErr_SetString(PyExc_RuntimeError, "Failed to convert to a string.");
+        JS_EndRequest(self->cx->cx);
         return NULL;
     }
 
     rchars = JS_GetStringChars(repr);
     rlen = JS_GetStringLength(repr);
 
+    JS_EndRequest(self->cx->cx);
     return PyUnicode_Decode((const char*) rchars, rlen*2, "utf-16", "strict");
 }
 
@@ -155,6 +164,7 @@ Object_length(Object* self)
         prototype as per JS for ... in ... semantics.
     */
     
+    JS_BeginRequest(self->cx->cx);
     cx = self->cx->cx;
     iter = JS_NewPropertyIterator(cx, self->obj);
     status = JS_NextProperty(cx, iter, &pid);
@@ -164,14 +174,18 @@ Object_length(Object* self)
         status = JS_NextProperty(cx, iter, &pid);
     }
 
+    JS_EndRequest(self->cx->cx);
     return ret;
 }
 
 PyObject*
 Object_getitem(Object* self, PyObject* key)
 {
+    PyObject* ret = NULL;
     jsval pval;
     jsid pid;
+
+    JS_BeginRequest(self->cx->cx);
 
     pval = py2js(self->cx, key);
     if(pval == JSVAL_VOID) return NULL;
@@ -179,43 +193,50 @@ Object_getitem(Object* self, PyObject* key)
     if(!JS_ValueToId(self->cx->cx, pval, &pid))
     {
         PyErr_SetString(PyExc_KeyError, "Failed to get property id.");
-        return NULL;
+        goto done;
     }
     
     if(!js_GetProperty(self->cx->cx, self->obj, pid, &pval))
     {
         PyErr_SetString(PyExc_AttributeError, "Failed to get property.");
-        return NULL;
+        goto done;
     }
 
-    return js2py_with_parent(self->cx, pval, self->val);
+    ret = js2py_with_parent(self->cx, pval, self->val);
+
+done:
+    JS_EndRequest(self->cx->cx);
+    return ret;
 }
 
 int
 Object_setitem(Object* self, PyObject* key, PyObject* val)
 {
+    int ret = -1;
     jsval pval;
     jsval vval;
     jsid pid;
 
+    JS_BeginRequest(self->cx->cx);
+
     pval = py2js(self->cx, key);
-    if(pval == JSVAL_VOID) return -1;
+    if(pval == JSVAL_VOID) goto done;
    
     if(!JS_ValueToId(self->cx->cx, pval, &pid))
     {
         PyErr_SetString(PyExc_KeyError, "Failed to get property id.");
-        return -1;
+        goto done;
     }
    
     if(val != NULL)
     {
         vval = py2js(self->cx, val);
-        if(vval == JSVAL_VOID) return -1;
+        if(vval == JSVAL_VOID) goto done;
 
         if(!js_SetProperty(self->cx->cx, self->obj, pid, &vval))
         {
             PyErr_SetString(PyExc_AttributeError, "Failed to set property.");
-            return -1;
+            goto done;
         }
     }
     else
@@ -223,17 +244,20 @@ Object_setitem(Object* self, PyObject* key, PyObject* val)
         if(!js_DeleteProperty(self->cx->cx, self->obj, pid, &vval))
         {
             PyErr_SetString(PyExc_AttributeError, "Failed to delete property.");
-            return -1;
+            goto done;
         }
 
         if(vval == JSVAL_VOID)
         {
             PyErr_SetString(PyExc_AttributeError, "Unable to delete property.");
-            return -1;
+            goto done;
         }
     }
 
-    return 0;
+    ret = 0;
+done:
+    JS_EndRequest(self->cx->cx);
+    return ret;
 }
 
 PyObject*
@@ -252,6 +276,8 @@ Object_rich_cmp(Object* self, PyObject* other, int op)
     int llen;
     int rlen;
     int cmp;
+
+    JS_BeginRequest(self->cx->cx);
 
     if(!PyMapping_Check(other) && !PySequence_Check(other))
     {
@@ -335,6 +361,7 @@ success:
     Py_XDECREF(otherval);
     // Inc ref the true or false return
     if(ret == Py_True || ret == Py_False) Py_INCREF(ret);
+    JS_EndRequest(self->cx->cx);
     return ret;
 }
 

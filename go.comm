@@ -1,4 +1,4 @@
-run setup.py test
+run setup.py --debug test
 bt
 continue
 bt

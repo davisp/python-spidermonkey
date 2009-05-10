@@ -43,7 +43,9 @@ Function_dealloc(Function* self)
 {
     if(self->parent != JSVAL_VOID)
     {
+        JS_BeginRequest(self->obj.cx->cx);
         JS_RemoveRoot(self->obj.cx->cx, &(self->parent));
+        JS_EndRequest(self->obj.cx->cx);
     }
 
     ObjectType->tp_dealloc((PyObject*) self);
@@ -61,7 +63,9 @@ Function_call(Function* self, PyObject* args, PyObject* kwargs)
     jsval func;
     jsval* argv = NULL;
     jsval rval;
-    
+
+    JS_BeginRequest(self->obj.cx->cx);
+
     argc = PySequence_Length(args);
     if(argc < 0) goto error;
     
@@ -93,11 +97,13 @@ Function_call(Function* self, PyObject* args, PyObject* kwargs)
     }
 
     ret = js2py(self->obj.cx, rval);
+    JS_EndRequest(self->obj.cx->cx);
     JS_MaybeGC(cx);
     goto success;
 
 error:
     if(argv != NULL) free(argv);
+    JS_EndRequest(self->obj.cx->cx);
 success:
     Py_XDECREF(item);
     return ret;

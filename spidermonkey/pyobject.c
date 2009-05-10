@@ -205,7 +205,7 @@ js_finalize(JSContext* jscx, JSObject* jsobj)
 {
     Context* pycx = (Context*) JS_GetContextPrivate(jscx);
     PyObject* pyobj = NULL;
-   
+  
     if(pycx == NULL)
     {
         // Not much else we can do but yell.
@@ -213,7 +213,10 @@ js_finalize(JSContext* jscx, JSObject* jsobj)
         return;
     }
 
+    JS_BeginRequest(jscx);
     pyobj = get_py_obj(jscx, jsobj);
+    JS_EndRequest(jscx);
+
     Py_DECREF(pyobj);
 
     // Technically, this could turn out to be nasty. If

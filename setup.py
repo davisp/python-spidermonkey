@@ -13,12 +13,23 @@ scripts and functions respectively.  Borrows heavily from Claes Jacobssen's
 Javascript Perl module, in turn based on Mozilla's 'PerlConnect' Perl binding.
 """,
 
+# I haven't the sligthest, but this appears to fix
+# all those EINTR errors. Pulled and adapted for OS X
+# from twisted bug #733
+import ctypes
+import signal
+libc = ctypes.CDLL("libc.dylib")
+libc.siginterrupt(signal.SIGCHLD, 0)
+
 import os
 import subprocess as sp
 import sys
+from distutils.dist import Distribution
 import ez_setup
 ez_setup.use_setuptools()
 from setuptools import setup, Extension
+
+DEBUG = "--debug" in sys.argv
 
 def find_sources(extensions=[".c", ".cpp"]):
     ret = []
@@ -67,6 +78,13 @@ def platform_config():
         "-D_BSD_SOURCE",
         "-Wno-strict-prototypes"
     ])
+    if DEBUG:
+        config["extra_compile_args"].extend([
+            "-UNDEBG",
+            "-DDEBUG",
+            "-DJS_PARANOID_REQUEST"
+        ])
+
 
     if sysname in ["Linux", "FreeBSD"]:
         config["extra_compile_args"].extend([
@@ -80,6 +98,9 @@ def platform_config():
         raise RuntimeError("Unknown system name: %s" % sysname)
 
     return config
+
+Distribution.global_options.append(("debug", None,
+                    "Build a DEBUG version of spidermonkey"))
 
 setup(
     name = "python-spidermonkey",

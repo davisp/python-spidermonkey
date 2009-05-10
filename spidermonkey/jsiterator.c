@@ -14,8 +14,8 @@ Iterator_Wrap(Context* cx, JSObject* obj)
     Iterator* self = NULL;
     PyObject* tpl = NULL;
     PyObject* ret = NULL;
-    JSObject* iter = NULL;
-    jsval priv;
+
+    JS_BeginRequest(cx->cx);
 
     // Build our new python object.
     tpl = Py_BuildValue("(O)", cx);
@@ -43,6 +43,7 @@ error:
     ret = NULL; // In case it was AddRoot
 success:
     Py_XDECREF(tpl);
+    JS_EndRequest(cx->cx);
     return (PyObject*) ret;
 }
 
@@ -79,7 +80,9 @@ Iterator_dealloc(Iterator* self)
 {
     if(self->iter != NULL)
     {
+        JS_BeginRequest(self->cx->cx);
         JS_RemoveRoot(self->cx->cx, &(self->root));
+        JS_EndRequest(self->cx->cx);
     }
    
     Py_XDECREF(self->cx);
@@ -91,6 +94,8 @@ Iterator_next(Iterator* self)
     PyObject* ret = NULL;
     jsid propid;
     jsval propname;
+
+    JS_BeginRequest(self->cx->cx);
 
     if(!JS_NextProperty(self->cx->cx, self->iter, &propid))
     {
@@ -106,12 +111,13 @@ Iterator_next(Iterator* self)
 
     if(propname != JSVAL_VOID)
     {
-        ret = js2py(self->cx->cx, propname);
+        ret = js2py(self->cx, propname);
     }
 
     // We return NULL with no error to signal completion.
 
 done:
+    JS_EndRequest(self->cx->cx);
     return ret;
 }
 
