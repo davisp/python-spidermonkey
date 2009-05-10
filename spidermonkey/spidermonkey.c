@@ -18,6 +18,7 @@ PyTypeObject* ContextType = NULL;
 PyTypeObject* ObjectType = NULL;
 PyTypeObject* ArrayType = NULL;
 PyTypeObject* FunctionType = NULL;
+PyTypeObject* IteratorType = NULL;
 PyTypeObject* HashCObjType = NULL;
 PyObject* JSError = NULL;
 
@@ -39,6 +40,8 @@ initspidermonkey(void)
 
     _FunctionType.tp_base = &_ObjectType;
     if(PyType_Ready(&_FunctionType) < 0) return;
+
+    if(PyType_Ready(&_IteratorType) < 0) return;
 
     if(PyType_Ready(&_HashCObjType) < 0) return;
     
@@ -69,6 +72,10 @@ initspidermonkey(void)
     FunctionType = &_FunctionType;
     Py_INCREF(FunctionType);
     PyModule_AddObject(m, "Function", (PyObject*) FunctionType);
+
+    IteratorType = &_IteratorType;
+    Py_INCREF(IteratorType);
+    // No module access on purpose.
 
     HashCObjType = &_HashCObjType;
     Py_INCREF(HashCObjType);

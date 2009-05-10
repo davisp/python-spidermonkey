@@ -53,6 +53,12 @@ def lt(a, b):
 def gt(a, b):
     assert a > b, "%r <= %r" % (a, b)
 
+def isin(a, b):
+    assert a in b, "%r is not in %r" % (a, b)
+
+def isnotin(a, b):
+    assert a not in b, "%r is in %r" % (a, b)
+
 def has(a, b):
     assert hasattr(a, b), "%r has no attribute %r" % (a, b)
 

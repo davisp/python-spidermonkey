@@ -338,6 +338,12 @@ success:
     return ret;
 }
 
+PyObject*
+Object_iterator(Object* self, PyObject* args, PyObject* kwargs)
+{
+    return Iterator_Wrap(self->cx, self->obj);
+}
+
 static PyMemberDef Object_members[] = {
     {NULL}
 };
@@ -379,7 +385,7 @@ PyTypeObject _ObjectType = {
     0,		                                    /*tp_clear*/
     (richcmpfunc)Object_rich_cmp,		        /*tp_richcompare*/
     0,		                                    /*tp_weaklistoffset*/
-    0,		                                    /*tp_iter*/
+    (getiterfunc)Object_iterator,		        /*tp_iter*/
     0,		                                    /*tp_iternext*/
     Object_methods,                             /*tp_methods*/
     Object_members,                             /*tp_members*/

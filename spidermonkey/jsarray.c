@@ -33,6 +33,12 @@ Array_get_item(Object* self, Py_ssize_t idx)
     jsval rval;
     jsint pos = (jsint) idx;
 
+    if(idx >= Array_length(self))
+    {
+        PyErr_SetString(PyExc_IndexError, "List index out of range.");
+        return NULL;
+    }
+
     if(!JS_GetElement(self->cx->cx, self->obj, pos, &rval))
     {
         PyErr_SetString(PyExc_AttributeError, "Failed to get array item.");
@@ -58,6 +64,12 @@ Array_set_item(Object* self, Py_ssize_t idx, PyObject* val)
     }
 
     return 0;
+}
+
+PyObject*
+Array_iterator(Object* self)
+{
+    return PySeqIter_New(self);
 }
 
 static PyMemberDef Array_members[] = {
@@ -108,7 +120,7 @@ PyTypeObject _ArrayType = {
     0,		                                    /*tp_clear*/
     0,		                                    /*tp_richcompare*/
     0,		                                    /*tp_weaklistoffset*/
-    0,		                                    /*tp_iter*/
+    (getiterfunc)Array_iterator,		        /*tp_iter*/
     0,		                                    /*tp_iternext*/
     Array_methods,                              /*tp_methods*/
     Array_members,                              /*tp_members*/
