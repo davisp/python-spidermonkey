@@ -2,3 +2,4 @@
 Thanks For Patches and Pointers
 ===============================
 benoitc - build system tweaks, compiling on OpenBSD
+Mark Lee - Patch for iterating JS arrays in Python
