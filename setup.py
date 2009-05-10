@@ -68,13 +68,13 @@ def platform_config():
         "-Wno-strict-prototypes"
     ])
 
-    if sysname == "Linux":
+    if sysname in ["Linux", "FreeBSD"]:
         config["extra_compile_args"].extend([
             "-DHAVE_VA_COPY",
             "-DVA_COPY=va_copy"
             ])
 
-    if sysname in ["Darwin", "Linux"]:
+    if sysname in ["Darwin", "Linux", "FreeBSD"]:
         config["extra_compile_args"].append("-DXP_UNIX")
     else:
         raise RuntimeError("Unknown system name: %s" % sysname)
