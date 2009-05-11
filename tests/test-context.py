@@ -39,7 +39,7 @@ def test_get_set_limits(cx):
 @t.cx()
 def test_exceed_time(cx):
     cx.max_time(1)
-    t.raises(RuntimeError, cx.execute, "while(true) {}")
+    t.raises(SystemError, cx.execute, "while(true) {}")
 
 @t.cx()
 def test_does_not_exceed_time(cx):
@@ -56,12 +56,12 @@ def test_does_not_exceed_time(cx):
 def test_exceed_memory(cx):
     cx.max_memory(10000)
     script = "var f = []; var b = 1000000; while(b-- > 0) f[f.length] = b*0.9;"
-    t.raises(Exception, cx.execute, script)
+    t.raises(MemoryError, cx.execute, script)
 
 @t.cx()
 def test_small_limit(cx):
     cx.max_memory(1)
-    t.raises(Exception, cx.execute, "far f = 0.3; f;");
+    t.raises(MemoryError, cx.execute, "var f = []; while(true) f.push(2.3);");
 
 @t.cx()
 def test_does_not_exceed_memory(cx):

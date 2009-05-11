@@ -197,6 +197,7 @@ branch_cb(JSContext* jscx, JSScript* script)
         JS_GC(jscx);
         if(jscx->runtime->gcBytes > pycx->max_heap)
         {
+            PyErr_NoMemory();
             return JS_FALSE;
         }
     }
@@ -207,6 +208,7 @@ branch_cb(JSContext* jscx, JSScript* script)
         && pycx->max_time < now - pycx->start_time
     )
     {
+        PyErr_SetNone(PyExc_SystemError);
         return JS_FALSE;
     }
 
