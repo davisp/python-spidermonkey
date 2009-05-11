@@ -104,7 +104,7 @@ Distribution.global_options.append(("debug", None,
 
 setup(
     name = "python-spidermonkey",
-    version = "0.0.5",
+    version = "0.0.6",
     license = "MIT",
     author = "Paul J. Davis",
     author_email = "paul.joseph.davis@gmail.com",
