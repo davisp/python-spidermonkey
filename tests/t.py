@@ -71,6 +71,7 @@ def raises(exctype, func, *args, **kwargs):
     except exctype, inst:
         pass
     else:
+        func_name = getattr(func, "func_name", "<builtin_function>")
         raise AssertionError("Function %s did not raise %s" % (
-            func.func_name, exctype.__name__))
+            func_name, exctype.__name__))
 

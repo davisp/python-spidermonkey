@@ -7,7 +7,11 @@
  */
 
 #include "spidermonkey.h"
+
+#include <time.h> // After spidermonkey.h so after Python.h
+
 #include "libjs/jsobj.h"
+#include "libjs/jscntxt.h"
 
 JSBool
 get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
@@ -159,6 +163,56 @@ js_global_class = {
     JSCLASS_NO_OPTIONAL_MEMBERS
 };
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+JSBool
+branch_cb(JSContext* jscx, JSScript* script)
+{
+    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
+    time_t now = time(NULL);
+
+    if(pycx == NULL)
+    {
+        JS_ReportError(jscx, "Failed to find Python context.");
+        return JS_FALSE;
+    }
+
+    // Get out quick if we don't have any quotas.
+    if(pycx->max_time == 0 && pycx->max_heap == 0)
+    {
+        return JS_TRUE;
+    }
+
+    // Only check occasionally for resource usage.
+    pycx->branch_count++;
+    if((pycx->branch_count > 0x3FFF) != 1)
+    {
+        return JS_TRUE;
+    }
+
+    pycx->branch_count = 0;
+
+    if(pycx->max_heap > 0 && jscx->runtime->gcBytes > pycx->max_heap)
+    {
+        // First see if garbage collection gets under the threshold.
+        JS_GC(jscx);
+        if(jscx->runtime->gcBytes > pycx->max_heap)
+        {
+            return JS_FALSE;
+        }
+    }
+
+    if(
+        pycx->max_time > 0
+        && pycx->start_time > 0
+        && pycx->max_time < now - pycx->start_time
+    )
+    {
+        return JS_FALSE;
+    }
+
+    return JS_TRUE;
+}
+
 PyObject*
 Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 {
@@ -234,6 +288,13 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     if(global != NULL) Py_INCREF(global);
     self->global = global;
 
+    // Setup counters for resource limits
+    self->branch_count = 0;
+    self->max_time = 0;
+    self->start_time = 0;
+    self->max_heap = 0;
+
+    JS_SetBranchCallback(self->cx, branch_cb);
     JS_SetErrorReporter(self->cx, report_error_cb);
     
     Py_INCREF(runtime);
@@ -268,7 +329,7 @@ Context_dealloc(Context* self)
     Py_XDECREF(self->global);
     Py_XDECREF(self->objects);
     Py_XDECREF(self->classes);
-    Py_DECREF(self->rt);
+    Py_XDECREF(self->rt);
 }
 
 PyObject*
@@ -365,6 +426,7 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
     JSObject* root = NULL;
     JSString* script = NULL;
     jschar* schars = NULL;
+    JSBool started_counter = JS_FALSE;
     size_t slen;
     jsval rval;
 
@@ -380,6 +442,13 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
     cx = self->cx;
     root = self->root;
 
+    // Mark us for time consumption
+    if(self->start_time == 0)
+    {
+        started_counter = JS_TRUE;
+        self->start_time = time(NULL);
+    }
+
     if(!JS_EvaluateUCScript(cx, root, schars, slen, "<JavaScript>", 1, &rval))
     {
         if(!PyErr_Occurred())
@@ -389,14 +458,10 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
         goto error;
     }
 
-    if(PyErr_Occurred())
-    {
-        PyErr_PrintEx(0);
-        exit(-1);
-    }
+    if(PyErr_Occurred()) goto error;
 
     ret = js2py(self, rval);
-    
+
     JS_EndRequest(self->cx);
     JS_MaybeGC(self->cx);
     goto success;
@@ -404,6 +469,12 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
 error:
     JS_EndRequest(self->cx);
 success:
+
+    if(started_counter)
+    {
+        self->start_time = 0;
+    }
+
     return ret;
 }
 
@@ -412,6 +483,42 @@ Context_gc(Context* self, PyObject* args, PyObject* kwargs)
 {
     JS_GC(self->cx);
     return (PyObject*) self;
+}
+
+PyObject*
+Context_max_memory(Context* self, PyObject* args, PyObject* kwargs)
+{
+    PyObject* ret = NULL;
+    long curr_max = -1;
+    long new_max = -1;
+
+    if(!PyArg_ParseTuple(args, "|l", &new_max)) goto done;
+
+    curr_max = self->max_heap;
+    if(new_max >= 0) self->max_heap = new_max;
+
+    ret = PyLong_FromLong(curr_max);
+
+done:
+    return ret;
+}
+
+PyObject*
+Context_max_time(Context* self, PyObject* args, PyObject* kwargs)
+{
+    PyObject* ret = NULL;
+    time_t curr_max = (time_t) -1;
+    time_t new_max = (time_t) -1;
+
+    if(!PyArg_ParseTuple(args, "|I", &new_max)) goto done;
+
+    curr_max = self->max_time;
+    if(new_max != ((time_t) -1)) self->max_time = new_max;
+
+    ret = PyLong_FromLong((long) curr_max);
+
+done:
+    return ret;
 }
 
 static PyMemberDef Context_members[] = {
@@ -442,6 +549,18 @@ static PyMethodDef Context_methods[] = {
         (PyCFunction)Context_gc,
         METH_VARARGS,
         "Force garbage collection of the JS context."
+    },
+    {
+        "max_memory",
+        (PyCFunction)Context_max_memory,
+        METH_VARARGS,
+        "Get/Set the maximum memory allocation allowed for a context."
+    },
+    {
+        "max_time",
+        (PyCFunction)Context_max_time,
+        METH_VARARGS,
+        "Get/Set the maximum time a context can execute for."
     },
     {NULL}
 };

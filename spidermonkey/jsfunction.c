@@ -63,6 +63,7 @@ Function_call(Function* self, PyObject* args, PyObject* kwargs)
     jsval func;
     jsval* argv = NULL;
     jsval rval;
+    JSBool started_counter = JS_FALSE;
 
     JS_BeginRequest(self->obj.cx->cx);
 
@@ -90,6 +91,14 @@ Function_call(Function* self, PyObject* args, PyObject* kwargs)
     func = self->obj.val;
     cx = self->obj.cx->cx;
     parent = JSVAL_TO_OBJECT(self->parent);
+
+    // Mark us for execution time if not already marked
+    if(self->obj.cx->start_time == 0)
+    {
+        started_counter = JS_TRUE;
+        self->obj.cx->start_time = time(NULL);
+    }
+
     if(!JS_CallFunctionValue(cx, parent, func, argc, argv, &rval))
     {
         PyErr_SetString(PyExc_RuntimeError, "Failed to execute JS Function.");
@@ -105,6 +114,13 @@ error:
     if(argv != NULL) free(argv);
     JS_EndRequest(self->obj.cx->cx);
 success:
+
+    // Reset the time counter if we started it.
+    if(started_counter)
+    {
+        self->obj.cx->start_time = 0;
+    }
+
     Py_XDECREF(item);
     return ret;
 }
