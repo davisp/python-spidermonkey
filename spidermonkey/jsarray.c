@@ -91,7 +91,7 @@ done:
 PyObject*
 Array_iterator(Object* self)
 {
-    return PySeqIter_New(self);
+    return PySeqIter_New((PyObject*) self);
 }
 
 static PyMemberDef Array_members[] = {

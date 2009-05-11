@@ -16,10 +16,13 @@ Javascript Perl module, in turn based on Mozilla's 'PerlConnect' Perl binding.
 # I haven't the sligthest, but this appears to fix
 # all those EINTR errors. Pulled and adapted for OS X
 # from twisted bug #733
-import ctypes
-import signal
-libc = ctypes.CDLL("libc.dylib")
-libc.siginterrupt(signal.SIGCHLD, 0)
+# 
+# Definitely forgot to comment this out before distribution.
+#
+# import ctypes
+# import signal
+# libc = ctypes.CDLL("libc.dylib")
+# libc.siginterrupt(signal.SIGCHLD, 0)
 
 import os
 import subprocess as sp
