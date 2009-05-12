@@ -21,6 +21,10 @@ Debian/Ubuntu:
 Where X.X is the version of Python you are using. I have not tested
 python-spidermonkey on Py3K so it may be horribly broken there.
 
+Gentoo:
+
+If you have python installed, then the headers should already be installed.
+
 Netscape Portable Runtime (nspr)
 --------------------------------
 
@@ -35,10 +39,39 @@ Mac OS X:
 Debian/Ubuntu:
 
     $ sudo apt-get install libnspr4-dev
+    
+Gentoo:
+
+    $ sudo emerge nspr
 
 Alternatively you can build from [source][nspr]. If you choose this route make
 sure that the nspr-config command is on your $PATH when running the install
 commands below.
+
+If you choose this route make
+sure that the pkg-config command is on your `$PATH` when running the install
+commands below. Additionally, make sure that `$PKG_CONFIG_PATH` is properly
+set.
+
+XULRunner (optional)
+--------------------
+You can optionally build the extension linked to your system's spidermonkey
+library, which is installed with XULRunner. You should be able to grab it from
+your package manager of choice with something like the following:
+
+Mac OS X:
+
+    $ sudo port install xulrunner
+
+Debian/Ubuntu:
+
+    $ sudo apt-get install xulrunner-1.9-dev
+
+Gentoo:
+
+    $ sudo emerge xulrunner
+
+As with [nspr][nspr], you can also build [xulrunner][xulrunner] from source. And as with [nspr][nspr] you need to make sure hat `$PATH` and `$PKG_CONFIG_PATH` are properly set when building the module.
 
 Installation
 ============
@@ -53,6 +86,11 @@ Installation
     *OR*
     
     $ sudo python setup.py develop
+
+If you want to build with the system spidermonkey library, replace the build
+command with the following:
+
+    $ python setup.py --system-library build
 
 Having Issues?
 ==============
@@ -117,3 +155,4 @@ Previous Authors
 
 [lh]: http://davisp.lighthouseapp.com/projects/26898-python-spidermonkey/overview
 [nspr]: ftp://ftp.mozilla.org/pub/mozilla.org/nspr/releases
+[xulrunner]: ftp://ftp.mozilla.org/pub/mozilla.org/xulrunner/releases
