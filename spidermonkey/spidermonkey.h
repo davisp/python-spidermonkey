@@ -12,7 +12,7 @@
 #include <Python.h>
 #include "structmember.h"
 
-#include "libjs/jsapi.h"
+#include <jsapi.h>
 
 #include "runtime.h"
 #include "context.h"

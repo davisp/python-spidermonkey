@@ -7,7 +7,7 @@
  */
 
 #include "spidermonkey.h"
-#include "libjs/jsobj.h"
+#include <jsobj.h>
 
 /*
     This is a fairly unsafe operation in so much as

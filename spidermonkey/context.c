@@ -10,8 +10,8 @@
 
 #include <time.h> // After spidermonkey.h so after Python.h
 
-#include "libjs/jsobj.h"
-#include "libjs/jscntxt.h"
+#include <jsobj.h>
+#include <jscntxt.h>
 
 JSBool
 get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
