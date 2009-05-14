@@ -16,3 +16,8 @@ def test_syntax_error(cx):
     except:
         line = traceback.format_exc().split("\n")[-3].strip()
         t.eq(line, ERROR)
+
+@t.cx()
+def test_invalid_octal(cx):
+    t.raises(t.JSError, cx.execute, "09;")
+
