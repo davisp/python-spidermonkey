@@ -509,13 +509,13 @@ PyObject*
 Context_max_time(Context* self, PyObject* args, PyObject* kwargs)
 {
     PyObject* ret = NULL;
-    time_t curr_max = (time_t) -1;
-    time_t new_max = (time_t) -1;
+    int curr_max = -1;
+    int new_max = -1;
 
-    if(!PyArg_ParseTuple(args, "|I", &new_max)) goto done;
+    if(!PyArg_ParseTuple(args, "|i", &new_max)) goto done;
 
     curr_max = self->max_time;
-    if(new_max != ((time_t) -1)) self->max_time = new_max;
+    if(new_max > 0) self->max_time = (time_t) new_max;
 
     ret = PyLong_FromLong((long) curr_max);
 

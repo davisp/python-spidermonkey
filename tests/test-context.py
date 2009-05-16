@@ -38,8 +38,13 @@ def test_get_set_limits(cx):
 
 @t.cx()
 def test_exceed_time(cx):
+    script = """
+        var time = function() {return (new Date()).getTime();};
+        var start = time();
+        while((time() - start) < 2000) {}
+    """
     cx.max_time(1)
-    t.raises(SystemError, cx.execute, "while(true) {}")
+    t.raises(SystemError, cx.execute, script)
 
 @t.cx()
 def test_does_not_exceed_time(cx):

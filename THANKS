@@ -14,3 +14,8 @@ sk89q
 
 spahl
     * Heads up on the signal hack and fix for a compiler warning.
+
+Mike West
+    * Reported bug in Context.max_time
+    * Better test for test_exceeds_time
+
