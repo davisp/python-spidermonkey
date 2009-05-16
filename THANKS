@@ -18,4 +18,4 @@ spahl
 Mike West
     * Reported bug in Context.max_time
     * Better test for test_exceeds_time
-
+    * Reported missing pkg-config requirement

@@ -5,6 +5,28 @@ arbitrary Python objects and functions in the JavaScript VM
 Requirements
 ============
 
+Pkg-Config
+----------
+
+Mac OS X:
+
+This should be installed by default. If not there is a port package:
+
+    $ sudo port install pkgconfig
+
+Debian/Ubuntu:
+
+This is also generally installed by default, but I have reports of it being
+otherwise.
+
+    $ sudo apt-get install pkg-config
+
+Gentoo:
+
+XXX: Can anyone verify this package name?
+
+    $ sudo emerge pkgconfig
+
 Python Development Files
 ------------------------
 
