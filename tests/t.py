@@ -45,6 +45,8 @@ def eq(a, b):
     assert a == b, "%r != %r" % (a, b)
 
 def ne(a, b):
+    print "%r" % a
+    print "%r" % b
     assert a != b, "%r == %r" % (a, b)
 
 def lt(a, b):
@@ -75,3 +77,6 @@ def raises(exctype, func, *args, **kwargs):
         raise AssertionError("Function %s did not raise %s" % (
             func_name, exctype.__name__))
 
+def is_js_object(obj):
+    assert isinstance(obj, spidermonkey.Object), \
+            "%r is not an instance of spdermonkey.Object." % obj

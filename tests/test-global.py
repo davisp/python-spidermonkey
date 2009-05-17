@@ -82,6 +82,21 @@ def test_py_set_global(rt):
     t.eq(cx.execute("foo;"), 71);
     t.eq(glbl["foo"], 71)
 
+class FunctionTest(object):
+    def __init__(self):
+        self.data = {}
+    def __getitem__(self, key):
+        return self.data[key]
+    def __setitem__(self, key, value):
+        self.data[key] = value
+
+@t.rt()
+def test_py_set_function_global(rt):
+    glbl = FunctionTest()
+    cx = rt.new_context(glbl)
+    cx.execute("function foo() {};")
+    t.is_js_object(glbl["foo"])
+
 class ActiveGlobal(object):
     def __init__(self):
         self.data = {}
@@ -89,6 +104,28 @@ class ActiveGlobal(object):
         return self.data[key]
     def __setitem__(self, key, value):
         self.data[key] = value * 2
+
+@t.rt()
+def test_py_no_del_item(rt):
+    glbl = ActiveGlobal()
+    cx = rt.new_context(glbl)
+    cx.execute('foo = 4;')
+    t.eq(glbl.data["foo"], 8)
+    cx.execute("delete foo;")
+    t.isin("foo", glbl.data)
+
+class ActiveGlobalWithDel(ActiveGlobal):
+    def __delitem__(self, key):
+        del self.data[key]
+
+@t.rt()
+def test_py_del_global(rt):
+    glbl = ActiveGlobalWithDel()
+    cx = rt.new_context(glbl)
+    cx.execute("foo = 4;")
+    t.eq(glbl.data["foo"], 8)
+    cx.execute("delete foo;")
+    t.isnotin("foo", glbl.data)
 
 @t.rt()
 def test_py_with_active_global(rt):

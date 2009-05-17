@@ -19,3 +19,7 @@ Mike West
     * Reported bug in Context.max_time
     * Better test for test_exceeds_time
     * Reported missing pkg-config requirement
+
+Riccardo Pelizzi
+    * Bug report for global handlers and "function foo() {}" syntax.
+

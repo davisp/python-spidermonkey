@@ -14,6 +14,60 @@
 #include <jscntxt.h>
 
 JSBool
+add_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
+{
+    JSObject* obj = NULL;
+
+    if(!JSVAL_IS_OBJECT(*rval)) return JS_TRUE;
+
+    obj = JSVAL_TO_OBJECT(*rval);
+    if(JS_ObjectIsFunction(jscx, obj)) return set_prop(jscx, jsobj, key, rval);
+    return JS_TRUE;
+}
+
+JSBool
+del_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
+{
+    Context* pycx = NULL;
+    PyObject* pykey = NULL;
+    PyObject* pyval = NULL;
+    JSBool ret = JS_FALSE;
+
+    pycx = (Context*) JS_GetContextPrivate(jscx);
+    if(pycx == NULL)
+    {
+        JS_ReportError(jscx, "Failed to get Python context.");
+        goto done;
+    }
+
+    // Bail if there's no registered global handler.
+    if(pycx->global == NULL)
+    {
+        ret = JS_TRUE;
+        goto done;
+    }
+
+    // Bail if the global doesn't have a __delitem__
+    if(!PyObject_HasAttrString(pycx->global, "__delitem__"))
+    {
+        ret = JS_TRUE;
+        goto done;
+    }
+
+    pykey = js2py(pycx, key);
+    if(pykey == NULL) goto done;
+
+    if(PyObject_DelItem(pycx->global, pykey) < 0) goto done;
+
+    ret = JS_TRUE;
+
+done:
+    Py_XDECREF(pykey);
+    Py_XDECREF(pyval);
+    return ret;
+}
+
+JSBool
 get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
     Context* pycx = NULL;
@@ -152,8 +206,8 @@ static JSClass
 js_global_class = {
     "JSGlobalObjectClass",
     JSCLASS_GLOBAL_FLAGS,
-    JS_PropertyStub,
-    JS_PropertyStub,
+    add_prop,
+    del_prop,
     get_prop,
     set_prop,
     JS_EnumerateStub,
