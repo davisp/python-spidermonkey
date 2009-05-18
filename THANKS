@@ -14,6 +14,7 @@ sk89q
 
 spahl
     * Heads up on the signal hack and fix for a compiler warning.
+    * Bug #16 integer property lookup failure report and fix.
 
 Mike West
     * Reported bug in Context.max_time

@@ -101,12 +101,12 @@ js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* val)
     pykey = js2py(pycx, key);
     if(pykey == NULL) goto done;
 
-    utf8 = PyUnicode_AsUTF8String(pykey);
-    if(utf8 == NULL) goto done;
-
     // Yeah. It's ugly as sin.
-    if(PyString_Check(utf8))
+    if(PyString_Check(pykey) || PyUnicode_Check(pykey))
     {
+        utf8 = PyUnicode_AsUTF8String(pykey);
+        if(utf8 == NULL) goto done;
+
         data = PyString_AsString(utf8);
         if(data == NULL) goto done;
 
