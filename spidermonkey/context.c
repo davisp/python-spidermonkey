@@ -18,7 +18,7 @@ add_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
     JSObject* obj = NULL;
 
-    if(!JSVAL_IS_OBJECT(*rval)) return JS_TRUE;
+    if(JSVAL_IS_NULL(*rval) || !JSVAL_IS_OBJECT(*rval)) return JS_TRUE;
 
     obj = JSVAL_TO_OBJECT(*rval);
     if(JS_ObjectIsFunction(jscx, obj)) return set_prop(jscx, jsobj, key, rval);

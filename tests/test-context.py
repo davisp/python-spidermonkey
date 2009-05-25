@@ -28,6 +28,11 @@ def test_reentry(cx):
     t.eq(cx.execute("x;"), 42)
 
 @t.cx()
+def test_null(cx):
+    cx.execute("x = null;")
+    t.eq(cx.execute("x;"), None)
+
+@t.cx()
 def test_get_set_limits(cx):
     t.eq(cx.max_time(), 0)
     t.eq(cx.max_memory(), 0)
