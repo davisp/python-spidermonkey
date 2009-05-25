@@ -45,8 +45,6 @@ def eq(a, b):
     assert a == b, "%r != %r" % (a, b)
 
 def ne(a, b):
-    print "%r" % a
-    print "%r" % b
     assert a != b, "%r == %r" % (a, b)
 
 def lt(a, b):
