@@ -15,9 +15,9 @@ def test_create_no_memory():
 def test_exceed_memory():
     # This test actually tests nothing. I'm leaving it for a bit to
     # see if I hear about the bug noted below.
-    rt = t.spidermonkey.Runtime(10000)
+    rt = t.spidermonkey.Runtime(50000)
     cx = rt.new_context()
-    script = "var b = []; var f = 10; while(f-- > 0) b.push(2.456);"
+    script = "var b = []; var f = 1000; while(f-- > 0) b.push(2.456);"
     # I had this script below original and it triggers some sort of
     # bug in the JS VM. I even reduced the test case outside of
     # python-spidermonkey to show it. No word from the SM guys.

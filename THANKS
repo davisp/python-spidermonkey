@@ -25,3 +25,5 @@ Mike West
 Riccardo Pelizzi
     * Bug report for global handlers and "function foo() {}" syntax.
 
+Keiji Costantini
+    * Bug report on the memory limit test.
