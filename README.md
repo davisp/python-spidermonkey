@@ -2,6 +2,11 @@
 Execute arbitrary JavaScript code from Python. Allows you to reference
 arbitrary Python objects and functions in the JavaScript VM
 
+Having issues?
+==============
+
+The project support site can be found at [lighthouseapp.com][lh].
+
 Requirements
 ============
 
@@ -113,12 +118,6 @@ If you want to build with the system spidermonkey library, replace the build
 command with the following:
 
     $ python setup.py --system-library build
-
-Having Issues?
-==============
-
-Add issues to the Lighthouse project [here][lh].
-
 
 Examples
 ========
