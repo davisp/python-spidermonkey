@@ -75,6 +75,12 @@ def test_py_get_global(rt):
     t.eq(cx.execute("foo;"), "bar")
 
 @t.rt()
+def test_py_global_by_kwarg(rt):
+    glbl = {"foo": "bar"}
+    cx = rt.new_context(glbl=glbl)
+    t.eq(cx.execute("foo;"), "bar")
+
+@t.rt()
 def test_py_set_global(rt):
     glbl = {}
     cx = rt.new_context(glbl)

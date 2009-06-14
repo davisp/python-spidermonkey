@@ -13,6 +13,9 @@
 #include <jsobj.h>
 #include <jscntxt.h>
 
+// Forward decl for add_prop
+JSBool set_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval);
+
 JSBool
 add_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
@@ -46,6 +49,9 @@ del_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
         ret = JS_TRUE;
         goto done;
     }
+    
+    // Check access to python land.
+    if(Context_has_access(pycx, jscx, pycx->global, pykey) <= 0) goto done;
 
     // Bail if the global doesn't have a __delitem__
     if(!PyObject_HasAttrString(pycx->global, "__delitem__"))
@@ -91,6 +97,8 @@ get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 
     pykey = js2py(pycx, key);
     if(pykey == NULL) goto done;
+
+    if(Context_has_access(pycx, jscx, pycx->global, pykey) <= 0) goto done;
 
     pyval = PyObject_GetItem(pycx->global, pykey);
     if(pyval == NULL)
@@ -138,6 +146,8 @@ set_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
     pykey = js2py(pycx, key);
     if(pykey == NULL) goto done;
 
+    if(Context_has_access(pycx, jscx, pycx->global, pykey) <= 0) goto done;
+
     pyval = js2py(pycx, *rval);
     if(pyval == NULL) goto done;
 
@@ -175,6 +185,8 @@ resolve(JSContext* jscx, JSObject* jsobj, jsval key)
 
     pykey = js2py(pycx, key);
     if(pykey == NULL) goto done;
+    
+    if(Context_has_access(pycx, jscx, pycx->global, pykey) <= 0) goto done;
 
     if(!PyMapping_HasKey(pycx->global, pykey))
     {
@@ -275,18 +287,33 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     Context* self = NULL;
     Runtime* runtime = NULL;
     PyObject* global = NULL;
+    PyObject* access = NULL;
 
-    if(!PyArg_ParseTuple(
-        args,
-        "O!|O",
+    char* keywords[] = {"runtime", "glbl", "access", NULL};
+
+    if(!PyArg_ParseTupleAndKeywords(
+        args, kwargs,
+        "O!|OO",
+        keywords,
         RuntimeType, &runtime,
-        &global
+        &global,
+        &access
     )) goto error;
+
+    if(global == Py_None) global = NULL;
+    if(access == Py_None) access = NULL;
 
     if(global != NULL && !PyMapping_Check(global))
     {
         PyErr_SetString(PyExc_TypeError,
                             "Global handler must provide item access.");
+        goto error;
+    }
+
+    if(access != NULL && !PyCallable_Check(access))
+    {
+        PyErr_SetString(PyExc_TypeError,
+                            "Access handler must be callable.");
         goto error;
     }
 
@@ -344,6 +371,9 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     if(global != NULL) Py_INCREF(global);
     self->global = global;
 
+    if(access != NULL) Py_INCREF(access);
+    self->access = access;
+
     // Setup counters for resource limits
     self->branch_count = 0;
     self->max_time = 0;
@@ -383,6 +413,7 @@ Context_dealloc(Context* self)
     }
 
     Py_XDECREF(self->global);
+    Py_XDECREF(self->access);
     Py_XDECREF(self->objects);
     Py_XDECREF(self->classes);
     Py_XDECREF(self->rt);
@@ -470,6 +501,42 @@ Context_rem_global(Context* self, PyObject* args, PyObject* kwargs)
 error:
 success:
     JS_EndRequest(self->cx);
+    return ret;
+}
+
+PyObject*
+Context_set_access(Context* self, PyObject* args, PyObject* kwargs)
+{
+    PyObject* ret = NULL;
+    PyObject* newval = NULL;
+
+    if(!PyArg_ParseTuple(args, "|O", &newval)) goto done;
+    if(newval != NULL && newval != Py_None)
+    {
+        if(!PyCallable_Check(newval))
+        {
+            PyErr_SetString(PyExc_TypeError,
+                                    "Access handler must be callable.");
+            ret = NULL;
+            goto done;
+        }
+    }
+
+    ret = self->access;
+
+    if(newval != NULL && newval != Py_None)
+    {
+        Py_INCREF(newval);
+        self->access = newval;
+    }
+
+    if(ret == NULL)
+    {
+        ret = Py_None;
+        Py_INCREF(ret);
+    }
+
+done:
     return ret;
 }
 
@@ -595,6 +662,12 @@ static PyMethodDef Context_methods[] = {
         "Remove a global object in the JS VM."
     },
     {
+        "set_access",
+        (PyCFunction)Context_set_access,
+        METH_VARARGS,
+        "Set the access handler for wrapped python objects."
+    },
+    {
         "execute",
         (PyCFunction)Context_execute,
         METH_VARARGS,
@@ -662,6 +735,42 @@ PyTypeObject _ContextType = {
     0,                                          /*tp_alloc*/
     Context_new,                                /*tp_new*/
 };
+
+int
+Context_has_access(Context* pycx, JSContext* jscx, PyObject* obj, PyObject* key)
+{
+    PyObject* tpl = NULL;
+    PyObject* tmp = NULL;
+    int res = -1;
+
+    if(pycx->access == NULL)
+    {
+        res = 1;
+        goto done;
+    }
+
+    tpl = Py_BuildValue("(OO)", obj, key);
+    if(tpl == NULL) goto done;
+
+    tmp = PyObject_Call(pycx->access, tpl, NULL);
+    res = PyObject_IsTrue(tmp);
+
+done:
+    Py_XDECREF(tpl);
+    Py_XDECREF(tmp);
+
+    if(res < 0)
+    {
+        PyErr_Clear();
+        JS_ReportError(jscx, "Failed to check python access.");
+    }
+    else if(res == 0)
+    {
+        JS_ReportError(jscx, "Python access prohibited.");
+    }
+
+    return res;
+}
 
 PyObject*
 Context_get_class(Context* cx, const char* key)

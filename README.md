@@ -137,7 +137,8 @@ Basics
     >>> fruit = Orange()
     >>> cx.add_global("apple", fruit)
     >>> cx.execute('"Show me the " + apple.is_ripe("raisin");')
-    Show me the ripe raisin
+    u'Show me the ripe raisin'
+
 
 Playing with Classes
 --------------------
@@ -151,12 +152,13 @@ Playing with Classes
     ...
     >>> rt = spidermonkey.Runtime()
     >>> cx = rt.new_context()
-    >>> cx.add_global(Monkey)
+    >>> cx.add_global("Monkey", Monkey)
     >>> monkey = cx.execute('var x = new Monkey(); x.baz = "schmammo"; x;')
     >>> monkey.baz
-    'schmammo'
+    u'schmammo'
     >>> monkey.__class__.__name__
     'Monkey'
+
 
 JavaScript Functions
 --------------------
@@ -166,7 +168,29 @@ JavaScript Functions
     >>> cx = rt.new_context()
     >>> func = cx.execute('function(val) {return "whoosh: " + val;}')
     >>> func("zipper!");
-    'whoosh: zipper!'
+    u'whoosh: zipper!'
+
+
+Filtering access to Python
+--------------------------
+
+    >>> import spidermonkey
+    >>> rt = spidermonkey.Runtime()
+    >>> def checker(obj, name):
+    ...     return not name.startswith("_")
+    ...
+    >>> cx = rt.new_context(access=checker)
+    >>> # Alternatively:
+    >>> cx.set_access()                                     #doctest: +ELLIPSIS
+    <function checker at ...>
+    >>> cx.set_access(checker)                              #doctest: +ELLIPSIS
+    <function checker at ...>
+    >>> cx.add_global("fish", {"gold": "gone", "_old_lady": "huzza"})
+    >>> cx.execute('fish["_old_lady"];')
+    Traceback (most recent call last):
+            ...
+    JSError: Error executing JavaScript.
+
 
 Previous Authors
 ================

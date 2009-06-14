@@ -27,3 +27,6 @@ Riccardo Pelizzi
 
 Keiji Costantini
     * Bug report on the memory limit test.
+
+Richard Boulton
+    * Initial patch for filtering Python access.
