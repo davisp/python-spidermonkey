@@ -149,7 +149,7 @@ Distribution.global_options.append(("system-library", None,
 
 setup(
     name = "python-spidermonkey",
-    version = "0.0.6",
+    version = "0.0.7",
     license = "MIT",
     author = "Paul J. Davis",
     author_email = "paul.joseph.davis@gmail.com",
