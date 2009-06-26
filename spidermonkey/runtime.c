@@ -20,12 +20,17 @@ Runtime_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     if(self == NULL) goto error;
 
     self->rt = JS_NewRuntime(stacksize);
-    if(self->rt == NULL) goto error;
+    if(self->rt == NULL)
+    {
+        PyErr_SetString(JSError, "Failed to allocate new JSRuntime.");
+        goto error;
+    }
 
     goto success;
 
 error:
     Py_XDECREF(self);
+    self = NULL;
 
 success:
     return (PyObject*) self;

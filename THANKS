@@ -30,3 +30,6 @@ Keiji Costantini
 
 Richard Boulton
     * Initial patch for filtering Python access.
+
+marc
+    * Report on Context turnover causing segfaults.

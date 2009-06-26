@@ -224,12 +224,6 @@ js_finalize(JSContext* jscx, JSObject* jsobj)
     JS_EndRequest(jscx);
 
     Py_DECREF(pyobj);
-
-    // Technically, this could turn out to be nasty. If
-    // this is the last object keeping the python cx
-    // alive, then this call could be deleting the cx
-    // we're about to return to.
-    Py_DECREF(pycx);
 }
 
 PyObject*
@@ -493,12 +487,6 @@ py2js_object(Context* cx, PyObject* pyobj)
         goto error;
     }
 
-    /*
-        As noted in Context_new, here we must ref the Python context
-        to make sure it stays alive while a Python object may be
-        referenced in the JS VM.
-    */
-    Py_INCREF(cx);
     ret = OBJECT_TO_JSVAL(jsobj);
     goto success;
 

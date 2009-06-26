@@ -34,6 +34,7 @@ finalize(JSContext* jscx, JSObject* jsobj)
     if(pycx == NULL)
     {
         fprintf(stderr, "*** NO PYTHON CONTEXT ***\n");
+        JS_EndRequest(jscx);
         return;
     }
 

@@ -344,10 +344,6 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
      *  garbage collection from happening on either side of the
      *  bridge.
      *
-     *  To make sure that the context stays alive we'll add a
-     *  reference to the Context* anytime we wrap a Python
-     *  object for use in JS.
-     *
      */
     JS_SetContextPrivate(self->cx, self);
 

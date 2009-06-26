@@ -46,7 +46,7 @@ def test_exceed_time(cx):
     script = """
         var time = function() {return (new Date()).getTime();};
         var start = time();
-        while((time() - start) < 2000) {}
+        while((time() - start) < 100000) {}
     """
     cx.max_time(1)
     t.raises(SystemError, cx.execute, script)
