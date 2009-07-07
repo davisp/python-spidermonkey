@@ -28,9 +28,7 @@ otherwise.
 
 Gentoo:
 
-XXX: Can anyone verify this package name?
-
-    $ sudo emerge pkgconfig
+    $ sudo emerge dev-util/pkgconfig
 
 Python Development Files
 ------------------------
@@ -69,7 +67,7 @@ Debian/Ubuntu:
     
 Gentoo:
 
-    $ sudo emerge nspr
+    $ sudo emerge dev-libs/nspr
 
 Alternatively you can build from [source][nspr]. If you choose this route make
 sure that the nspr-config command is on your $PATH when running the install
@@ -96,7 +94,7 @@ Debian/Ubuntu:
 
 Gentoo:
 
-    $ sudo emerge xulrunner
+    $ sudo emerge net-libs/xulrunner
 
 As with [nspr][nspr], you can also build [xulrunner][xulrunner] from source. And as with [nspr][nspr] you need to make sure hat `$PATH` and `$PKG_CONFIG_PATH` are properly set when building the module.
 
