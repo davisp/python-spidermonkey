@@ -5,6 +5,5 @@ include ez_setup.py
 include go
 include go.comm
 include setup.py
-include spidermonkey/*.*
-include spidermonkey/libjs/*.*
+recursive-include spidermonkey *
 include tests/*.py
