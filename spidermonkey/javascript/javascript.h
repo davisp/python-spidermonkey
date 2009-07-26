@@ -6,15 +6,13 @@
  *
  */
 
-#ifndef PYSM_ERROR_H
-#define PYSM_ERROR_H
+#ifndef PYSM_JAVASCRIPT_H
+#define PYSM_JAVASCRIPT_H
 
-/*
-    I'm dropping the second parameter. As it's
-    only used so that we can see what function
-    caused the call to the error frame.
-*/
-#define ERROR(f) add_frame(__FILE__, (f), __LINE__)
+extern JSClass js_global_class;
+
+JSClass* create_class(Context* cx, PyObject* pyobj);
+JSBool new_py_iter(Context* cx, PyObject* obj, jsval* rval);
 void add_frame(const char* srcfile, const char* funcname, int linenum);
 void report_error_cb(JSContext* cx, const char* message, JSErrorReport* report);
 

@@ -6,7 +6,45 @@
  *
  */
 
-#include "spidermonkey.h"
+#include <spidermonkey.h>
+
+static void finalize(JSContext*, JSObject*);
+static JSBool call(JSContext*, JSObject*, uintN, jsval*, jsval*);
+JSBool def_next(JSContext*, JSObject*, uintN, jsval*, jsval*);
+JSBool seq_next(JSContext*, JSObject*, uintN, jsval*, jsval*);
+
+static JSClass
+js_iter_class = {
+    "PyJSIteratorClass",
+    JSCLASS_HAS_RESERVED_SLOTS(3),
+    JS_PropertyStub,
+    JS_PropertyStub,
+    JS_PropertyStub,
+    JS_PropertyStub,
+    JS_EnumerateStub,
+    JS_ResolveStub,
+    JS_ConvertStub,
+    finalize,
+    NULL, // get object ops
+    NULL, // check access
+    call,
+    NULL, // constructor
+    NULL, // xdr object
+    NULL, // has instance
+    NULL, // mark
+    NULL  // reserved slots
+};
+
+static JSFunctionSpec js_def_iter_functions[] = {
+    {"next", def_next, 0, 0, 0},
+    {0, 0, 0, 0, 0}
+};
+
+static JSFunctionSpec js_seq_iter_functions[] = {
+    {"next", seq_next, 0, 0, 0},
+    {0, 0, 0, 0, 0}
+};
+
 
 PyObject*
 get_js_slot(JSContext* cx, JSObject* obj, int slot)
@@ -263,38 +301,6 @@ done:
     Py_XDECREF(value);
     return ret;
 }
-
-static JSClass
-js_iter_class = {
-    "PyJSIteratorClass",
-    JSCLASS_HAS_RESERVED_SLOTS(3),
-    JS_PropertyStub,
-    JS_PropertyStub,
-    JS_PropertyStub,
-    JS_PropertyStub,
-    JS_EnumerateStub,
-    JS_ResolveStub,
-    JS_ConvertStub,
-    finalize,
-    NULL, // get object ops
-    NULL, // check access
-    call,
-    NULL, // constructor
-    NULL, // xdr object
-    NULL, // has instance
-    NULL, // mark
-    NULL  // reserved slots
-};
-
-static JSFunctionSpec js_def_iter_functions[] = {
-    {"next", def_next, 0, 0, 0},
-    {0, 0, 0, 0, 0}
-};
-
-static JSFunctionSpec js_seq_iter_functions[] = {
-    {"next", seq_next, 0, 0, 0},
-    {0, 0, 0, 0, 0}
-};
 
 JSBool
 new_py_def_iter(Context* cx, PyObject* obj, jsval* rval)

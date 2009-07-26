@@ -6,7 +6,7 @@
  *
  */
 
-#include "spidermonkey.h"
+#include <spidermonkey.h>
 
 PyObject*
 HashCObj_FromVoidPtr(void *cobj)

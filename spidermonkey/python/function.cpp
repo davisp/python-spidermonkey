@@ -6,37 +6,7 @@
  *
  */
 
-#include "spidermonkey.h"
-
-PyObject*
-js2py_function(Context* cx, jsval val, jsval parent)
-{
-    Function* ret = NULL;
-
-    if(parent == JSVAL_VOID || !JSVAL_IS_OBJECT(parent))
-    {
-        PyErr_BadInternalCall();
-        goto error;
-    }
-    
-    ret = (Function*) make_object(FunctionType, cx, val);
-    if(ret == NULL) goto error;
-
-    ret->parent = parent;
-    if(!JS_AddRoot(cx->cx, &(ret->parent)))
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to add GC root.");
-        goto error;
-    }
-
-    goto success;
-
-error:
-    Py_XDECREF((PyObject*)ret);
-    ret = NULL; // In case of AddRoot error.
-success:
-    return (PyObject*) ret;
-}
+#include <spidermonkey.h>
 
 void
 Function_dealloc(Function* self)
@@ -70,7 +40,7 @@ Function_call(Function* self, PyObject* args, PyObject* kwargs)
     argc = PySequence_Length(args);
     if(argc < 0) goto error;
     
-    argv = malloc(sizeof(jsval) * argc);
+    argv = (jsval*) malloc(sizeof(jsval) * argc);
     if(argv == NULL)
     {
         PyErr_NoMemory();
@@ -92,13 +62,6 @@ Function_call(Function* self, PyObject* args, PyObject* kwargs)
     cx = self->obj.cx->cx;
     parent = JSVAL_TO_OBJECT(self->parent);
 
-    // Mark us for execution time if not already marked
-    if(self->obj.cx->start_time == 0)
-    {
-        started_counter = JS_TRUE;
-        self->obj.cx->start_time = time(NULL);
-    }
-
     if(!JS_CallFunctionValue(cx, parent, func, argc, argv, &rval))
     {
         PyErr_SetString(PyExc_RuntimeError, "Failed to execute JS Function.");
@@ -114,13 +77,6 @@ error:
     if(argv != NULL) free(argv);
     JS_EndRequest(self->obj.cx->cx);
 success:
-
-    // Reset the time counter if we started it.
-    if(started_counter)
-    {
-        self->obj.cx->start_time = 0;
-    }
-
     Py_XDECREF(item);
     return ret;
 }

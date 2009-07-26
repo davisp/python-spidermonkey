@@ -6,7 +6,7 @@
  *
  */
 
-#include "spidermonkey.h"
+#include <spidermonkey.h>
 
 PyObject*
 Runtime_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
@@ -45,10 +45,7 @@ Runtime_init(Runtime* self, PyObject* args, PyObject* kwargs)
 void
 Runtime_dealloc(Runtime* self)
 {
-    if(self->rt != NULL)
-    {
-        JS_DestroyRuntime(self->rt);
-    }
+    if(self->rt != NULL) JS_DestroyRuntime(self->rt);
 }
 
 PyObject*

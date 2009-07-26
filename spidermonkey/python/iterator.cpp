@@ -6,7 +6,7 @@
  *
  */
 
-#include "spidermonkey.h"
+#include <spidermonkey.h>
 
 PyObject*
 Iterator_Wrap(Context* cx, JSObject* obj)
@@ -53,19 +53,21 @@ Iterator_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     Context* cx = NULL;
     Iterator* self = NULL;
 
-    if(!PyArg_ParseTuple(args, "O!", ContextType, &cx)) goto error;
+    if(!PyArg_ParseTuple(args, "O!", ContextType, &cx)) goto done;
 
     self = (Iterator*) type->tp_alloc(type, 0);
-    if(self == NULL) goto error;
+    if(self == NULL)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to create iterator");
+        goto done;
+    }
     
     Py_INCREF(cx);
     self->cx = cx;
     self->iter = NULL;
-    goto success;
+    goto done;
 
-error:
-    ERROR("spidermonkey.Iterator.new");
-success:
+done:
     return (PyObject*) self;
 }
 

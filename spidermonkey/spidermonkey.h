@@ -14,25 +14,9 @@
 
 #include <jsapi.h>
 
-#include "runtime.h"
-#include "context.h"
-
-#include "string.h"
-#include "integer.h"
-#include "double.h"
-
-#include "pyobject.h"
-#include "pyiter.h"
-
-#include "jsobject.h"
-#include "jsarray.h"
-#include "jsfunction.h"
-#include "jsiterator.h"
-
-#include "convert.h"
-#include "error.h"
-
-#include "hashcobj.h"
+#include "common/common.h"
+#include "javascript/javascript.h"
+#include "python/python.h"
 
 extern PyObject* SpidermonkeyModule;
 extern PyTypeObject* RuntimeType;

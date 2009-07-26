@@ -6,9 +6,8 @@
  *
  */
 
-#include "spidermonkey.h"
-#include "frameobject.h" // Python
-#include "traceback.h" // Python
+#include <spidermonkey.h>
+#include "frameobject.h"
 
 void
 add_frame(const char* srcfile, const char* funcname, int linenum)

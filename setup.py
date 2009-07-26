@@ -19,10 +19,10 @@ Javascript Perl module, in turn based on Mozilla's 'PerlConnect' Perl binding.
 # 
 # Definitely forgot to comment this out before distribution.
 #
-# import ctypes
-# import signal
-# libc = ctypes.CDLL("libc.dylib")
-# libc.siginterrupt(signal.SIGCHLD, 0)
+import ctypes
+import signal
+libc = ctypes.CDLL("libc.dylib")
+libc.siginterrupt(signal.SIGCHLD, 0)
 
 import glob
 import os
@@ -111,8 +111,9 @@ def platform_config():
             "-Wno-strict-prototypes" # Disable copius JS warnings
         ],
         "include_dirs": [
+            "spidermonkey/",
             "spidermonkey/libjs",
-            "spidermonkey/%s-%s" % (sysname, machine)
+            "spidermonkey/libjs/%s-%s" % (sysname, machine)
         ],
         "library_dirs": [],
         "libraries": [],

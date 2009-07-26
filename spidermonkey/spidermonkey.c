@@ -6,7 +6,7 @@
  *
  */
 
-#include "spidermonkey.h"
+#include <spidermonkey.h>
 
 #ifndef PyMODINIT_FUNC
 #define PyMODINIT_FUNC void
@@ -34,24 +34,16 @@ initspidermonkey(void)
     if(PyType_Ready(&_RuntimeType) < 0) return;
     if(PyType_Ready(&_ContextType) < 0) return;
     if(PyType_Ready(&_ObjectType) < 0) return;
-
     _ArrayType.tp_base = &_ObjectType;
     if(PyType_Ready(&_ArrayType) < 0) return;
-
     _FunctionType.tp_base = &_ObjectType;
     if(PyType_Ready(&_FunctionType) < 0) return;
-
     if(PyType_Ready(&_IteratorType) < 0) return;
-
     if(PyType_Ready(&_HashCObjType) < 0) return;
     
     m = Py_InitModule3("spidermonkey", spidermonkey_methods,
-            "The Python-Spidermonkey bridge.");
-
-    if(m == NULL)
-    {
-        return;
-    }
+                            "The Python-Spidermonkey bridge.");
+    if(m == NULL) return;
 
     RuntimeType = &_RuntimeType;
     Py_INCREF(RuntimeType);
@@ -75,11 +67,9 @@ initspidermonkey(void)
 
     IteratorType = &_IteratorType;
     Py_INCREF(IteratorType);
-    // No module access on purpose.
 
     HashCObjType = &_HashCObjType;
     Py_INCREF(HashCObjType);
-    // Don't add access from the module on purpose.
 
     JSError = PyErr_NewException("spidermonkey.JSError", NULL, NULL);
     PyModule_AddObject(m, "JSError", JSError);

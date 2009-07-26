@@ -6,304 +6,36 @@
  *
  */
 
-#include "spidermonkey.h"
+#include <spidermonkey.h>
 
-#include <time.h> // After spidermonkey.h so after Python.h
+#include <time.h>
 
 #include <jsobj.h>
 #include <jscntxt.h>
-
-// Forward decl for add_prop
-JSBool set_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval);
-
-JSBool
-add_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
-{
-    JSObject* obj = NULL;
-
-    if(JSVAL_IS_NULL(*rval) || !JSVAL_IS_OBJECT(*rval)) return JS_TRUE;
-
-    obj = JSVAL_TO_OBJECT(*rval);
-    if(JS_ObjectIsFunction(jscx, obj)) return set_prop(jscx, jsobj, key, rval);
-    return JS_TRUE;
-}
-
-JSBool
-del_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
-{
-    Context* pycx = NULL;
-    PyObject* pykey = NULL;
-    PyObject* pyval = NULL;
-    JSBool ret = JS_FALSE;
-
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        JS_ReportError(jscx, "Failed to get Python context.");
-        goto done;
-    }
-
-    // Bail if there's no registered global handler.
-    if(pycx->global == NULL)
-    {
-        ret = JS_TRUE;
-        goto done;
-    }
-    
-    // Check access to python land.
-    if(Context_has_access(pycx, jscx, pycx->global, pykey) <= 0) goto done;
-
-    // Bail if the global doesn't have a __delitem__
-    if(!PyObject_HasAttrString(pycx->global, "__delitem__"))
-    {
-        ret = JS_TRUE;
-        goto done;
-    }
-
-    pykey = js2py(pycx, key);
-    if(pykey == NULL) goto done;
-
-    if(PyObject_DelItem(pycx->global, pykey) < 0) goto done;
-
-    ret = JS_TRUE;
-
-done:
-    Py_XDECREF(pykey);
-    Py_XDECREF(pyval);
-    return ret;
-}
-
-JSBool
-get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
-{
-    Context* pycx = NULL;
-    PyObject* pykey = NULL;
-    PyObject* pyval = NULL;
-    JSBool ret = JS_FALSE;
-
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        JS_ReportError(jscx, "Failed to get Python context.");
-        goto done;
-    }
-
-    // Bail if there's no registered global handler.
-    if(pycx->global == NULL)
-    {
-        ret = JS_TRUE;
-        goto done;
-    }
-
-    pykey = js2py(pycx, key);
-    if(pykey == NULL) goto done;
-
-    if(Context_has_access(pycx, jscx, pycx->global, pykey) <= 0) goto done;
-
-    pyval = PyObject_GetItem(pycx->global, pykey);
-    if(pyval == NULL)
-    {
-        if(PyErr_GivenExceptionMatches(PyErr_Occurred(), PyExc_KeyError))
-        {
-            PyErr_Clear();
-            ret = JS_TRUE;
-        }
-        goto done;
-    }
-
-    *rval = py2js(pycx, pyval);
-    if(*rval == JSVAL_VOID) goto done;
-    ret = JS_TRUE;
-
-done:
-    Py_XDECREF(pykey);
-    Py_XDECREF(pyval);
-    return ret;
-}
-
-JSBool
-set_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
-{
-    Context* pycx = NULL;
-    PyObject* pykey = NULL;
-    PyObject* pyval = NULL;
-    JSBool ret = JS_FALSE;
-
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        JS_ReportError(jscx, "Failed to get Python context.");
-        goto done;
-    }
-
-    // Bail if there's no registered global handler.
-    if(pycx->global == NULL)
-    {
-        ret = JS_TRUE;
-        goto done;
-    }
-
-    pykey = js2py(pycx, key);
-    if(pykey == NULL) goto done;
-
-    if(Context_has_access(pycx, jscx, pycx->global, pykey) <= 0) goto done;
-
-    pyval = js2py(pycx, *rval);
-    if(pyval == NULL) goto done;
-
-    if(PyObject_SetItem(pycx->global, pykey, pyval) < 0) goto done;
-
-    ret = JS_TRUE;
-
-done:
-    Py_XDECREF(pykey);
-    Py_XDECREF(pyval);
-    return ret;
-}
-
-JSBool
-resolve(JSContext* jscx, JSObject* jsobj, jsval key)
-{
-    Context* pycx = NULL;
-    PyObject* pykey = NULL;
-    jsid pid;
-    JSBool ret = JS_FALSE;
-
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        JS_ReportError(jscx, "Failed to get Python context.");
-        goto done;
-    }
-
-    // Bail if there's no registered global handler.
-    if(pycx->global == NULL)
-    {
-        ret = JS_TRUE;
-        goto done;
-    }
-
-    pykey = js2py(pycx, key);
-    if(pykey == NULL) goto done;
-    
-    if(Context_has_access(pycx, jscx, pycx->global, pykey) <= 0) goto done;
-
-    if(!PyMapping_HasKey(pycx->global, pykey))
-    {
-        ret = JS_TRUE;
-        goto done;
-    }
-
-    if(!JS_ValueToId(jscx, key, &pid))
-    {
-        JS_ReportError(jscx, "Failed to convert property id.");
-        goto done;
-    }
-
-    if(!js_DefineProperty(jscx, pycx->root, pid, JSVAL_VOID, NULL, NULL,
-                            JSPROP_SHARED, NULL))
-    {
-        JS_ReportError(jscx, "Failed to define property.");
-        goto done;
-    }
-
-    ret = JS_TRUE;
-
-done:
-    Py_XDECREF(pykey);
-    return ret;
-}
-
-static JSClass
-js_global_class = {
-    "JSGlobalObjectClass",
-    JSCLASS_GLOBAL_FLAGS,
-    add_prop,
-    del_prop,
-    get_prop,
-    set_prop,
-    JS_EnumerateStub,
-    resolve,
-    JS_ConvertStub,
-    JS_FinalizeStub,
-    JSCLASS_NO_OPTIONAL_MEMBERS
-};
-
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-JSBool
-branch_cb(JSContext* jscx, JSScript* script)
-{
-    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
-    time_t now = time(NULL);
-
-    if(pycx == NULL)
-    {
-        JS_ReportError(jscx, "Failed to find Python context.");
-        return JS_FALSE;
-    }
-
-    // Get out quick if we don't have any quotas.
-    if(pycx->max_time == 0 && pycx->max_heap == 0)
-    {
-        return JS_TRUE;
-    }
-
-    // Only check occasionally for resource usage.
-    pycx->branch_count++;
-    if((pycx->branch_count > 0x3FFF) != 1)
-    {
-        return JS_TRUE;
-    }
-
-    pycx->branch_count = 0;
-
-    if(pycx->max_heap > 0 && jscx->runtime->gcBytes > pycx->max_heap)
-    {
-        // First see if garbage collection gets under the threshold.
-        JS_GC(jscx);
-        if(jscx->runtime->gcBytes > pycx->max_heap)
-        {
-            PyErr_NoMemory();
-            return JS_FALSE;
-        }
-    }
-
-    if(
-        pycx->max_time > 0
-        && pycx->start_time > 0
-        && pycx->max_time < now - pycx->start_time
-    )
-    {
-        PyErr_SetNone(PyExc_SystemError);
-        return JS_FALSE;
-    }
-
-    return JS_TRUE;
-}
 
 PyObject*
 Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 {
     Context* self = NULL;
     Runtime* runtime = NULL;
-    PyObject* global = NULL;
+    PyObject* pyglobal = NULL;
     PyObject* access = NULL;
 
-    char* keywords[] = {"runtime", "glbl", "access", NULL};
+    char* keywords[] = {"runtime", "global", "access", NULL};
 
     if(!PyArg_ParseTupleAndKeywords(
         args, kwargs,
         "O!|OO",
         keywords,
         RuntimeType, &runtime,
-        &global,
+        &pyglobal,
         &access
     )) goto error;
 
-    if(global == Py_None) global = NULL;
+    if(pyglobal == Py_None) pyglobal = NULL;
     if(access == Py_None) access = NULL;
 
-    if(global != NULL && !PyMapping_Check(global))
+    if(pyglobal != NULL && !PyMapping_Check(pyglobal))
     {
         PyErr_SetString(PyExc_TypeError,
                             "Global handler must provide item access.");
@@ -348,14 +80,14 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     JS_SetContextPrivate(self->cx, self);
 
     // Setup the root of the property lookup doodad.
-    self->root = JS_NewObject(self->cx, &js_global_class, NULL, NULL);
-    if(self->root == NULL)
+    self->jsglobal = JS_NewObject(self->cx, &js_global_class, NULL, NULL);
+    if(self->jsglobal == NULL)
     {
         PyErr_SetString(PyExc_RuntimeError, "Error creating root object.");
         goto error;
     }
 
-    if(!JS_InitStandardClasses(self->cx, self->root))
+    if(!JS_InitStandardClasses(self->cx, self->jsglobal))
     {
         PyErr_SetString(PyExc_RuntimeError, "Error initializing JS VM.");
         goto error;
@@ -364,19 +96,12 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     // Don't setup the global handler until after the standard classes
     // have been initialized.
     // XXX: Does anyone know if finalize is called if new fails?
-    if(global != NULL) Py_INCREF(global);
-    self->global = global;
+    if(pyglobal != NULL) Py_INCREF(pyglobal);
+    self->pyglobal = pyglobal;
 
     if(access != NULL) Py_INCREF(access);
     self->access = access;
 
-    // Setup counters for resource limits
-    self->branch_count = 0;
-    self->max_time = 0;
-    self->start_time = 0;
-    self->max_heap = 0;
-
-    JS_SetBranchCallback(self->cx, branch_cb);
     JS_SetErrorReporter(self->cx, report_error_cb);
     
     Py_INCREF(runtime);
@@ -408,7 +133,7 @@ Context_dealloc(Context* self)
         JS_DestroyContext(self->cx);
     }
 
-    Py_XDECREF(self->global);
+    Py_XDECREF(self->pyglobal);
     Py_XDECREF(self->access);
     Py_XDECREF(self->objects);
     Py_XDECREF(self->classes);
@@ -440,7 +165,7 @@ Context_add_global(Context* self, PyObject* args, PyObject* kwargs)
     jsv = py2js(self, pyval);
     if(jsv == JSVAL_VOID) goto error;
 
-    if(!js_SetProperty(self->cx, self->root, kid, &jsv))
+    if(!js_SetProperty(self->cx, self->jsglobal, kid, &jsv))
     {
         PyErr_SetString(PyExc_AttributeError, "Failed to set global property.");
         goto error;
@@ -475,7 +200,7 @@ Context_rem_global(Context* self, PyObject* args, PyObject* kwargs)
         PyErr_SetString(JSError, "Failed to create key id.");
     }
 
-    if(!js_GetProperty(self->cx, self->root, kid, &jsv))
+    if(!js_GetProperty(self->cx, self->jsglobal, kid, &jsv))
     {
         PyErr_SetString(JSError, "Failed to get global property.");
         goto error;
@@ -484,7 +209,7 @@ Context_rem_global(Context* self, PyObject* args, PyObject* kwargs)
     ret = js2py(self, jsv);
     if(ret == NULL) goto error;
     
-    if(!js_DeleteProperty(self->cx, self->root, kid, &jsv))
+    if(!js_DeleteProperty(self->cx, self->jsglobal, kid, &jsv))
     {
         PyErr_SetString(JSError, "Failed to remove global property.");
         goto error;
@@ -542,7 +267,7 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
     PyObject* obj = NULL;
     PyObject* ret = NULL;
     JSContext* cx = NULL;
-    JSObject* root = NULL;
+    JSObject* jsglobal = NULL;
     JSString* script = NULL;
     jschar* schars = NULL;
     JSBool started_counter = JS_FALSE;
@@ -559,16 +284,9 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
     slen = JS_GetStringLength(script);
     
     cx = self->cx;
-    root = self->root;
+    jsglobal = self->jsglobal;
 
-    // Mark us for time consumption
-    if(self->start_time == 0)
-    {
-        started_counter = JS_TRUE;
-        self->start_time = time(NULL);
-    }
-
-    if(!JS_EvaluateUCScript(cx, root, schars, slen, "<JavaScript>", 1, &rval))
+    if(!JS_EvaluateUCScript(cx, jsglobal, schars, slen, "<JavaScript>", 1, &rval))
     {
         if(!PyErr_Occurred())
         {
@@ -588,12 +306,6 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
 error:
     JS_EndRequest(self->cx);
 success:
-
-    if(started_counter)
-    {
-        self->start_time = 0;
-    }
-
     return ret;
 }
 
@@ -602,42 +314,6 @@ Context_gc(Context* self, PyObject* args, PyObject* kwargs)
 {
     JS_GC(self->cx);
     return (PyObject*) self;
-}
-
-PyObject*
-Context_max_memory(Context* self, PyObject* args, PyObject* kwargs)
-{
-    PyObject* ret = NULL;
-    long curr_max = -1;
-    long new_max = -1;
-
-    if(!PyArg_ParseTuple(args, "|l", &new_max)) goto done;
-
-    curr_max = self->max_heap;
-    if(new_max >= 0) self->max_heap = new_max;
-
-    ret = PyLong_FromLong(curr_max);
-
-done:
-    return ret;
-}
-
-PyObject*
-Context_max_time(Context* self, PyObject* args, PyObject* kwargs)
-{
-    PyObject* ret = NULL;
-    int curr_max = -1;
-    int new_max = -1;
-
-    if(!PyArg_ParseTuple(args, "|i", &new_max)) goto done;
-
-    curr_max = self->max_time;
-    if(new_max > 0) self->max_time = (time_t) new_max;
-
-    ret = PyLong_FromLong((long) curr_max);
-
-done:
-    return ret;
 }
 
 static PyMemberDef Context_members[] = {
@@ -674,18 +350,6 @@ static PyMethodDef Context_methods[] = {
         (PyCFunction)Context_gc,
         METH_VARARGS,
         "Force garbage collection of the JS context."
-    },
-    {
-        "max_memory",
-        (PyCFunction)Context_max_memory,
-        METH_VARARGS,
-        "Get/Set the maximum memory allocation allowed for a context."
-    },
-    {
-        "max_time",
-        (PyCFunction)Context_max_time,
-        METH_VARARGS,
-        "Get/Set the maximum time a context can execute for."
     },
     {NULL}
 };

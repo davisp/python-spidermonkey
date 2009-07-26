@@ -6,7 +6,7 @@
  *
  */
 
-#include "spidermonkey.h"
+#include <spidermonkey.h>
 #include <jsobj.h>
 
 PyObject*
@@ -77,31 +77,27 @@ success:
 }
 
 PyObject*
-js2py_object(Context* cx, jsval val)
-{
-    return make_object(ObjectType, cx, val);
-}
-
-PyObject*
 Object_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 {
     Object* self = NULL;
     Context* cx = NULL;
 
-    if(!PyArg_ParseTuple(args, "O!", ContextType, &cx)) goto error;
+    if(!PyArg_ParseTuple(args, "O!", ContextType, &cx)) goto done;
 
     self = (Object*) type->tp_alloc(type, 0);
-    if(self == NULL) goto error;
+    if(self == NULL)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to create object.");
+        goto done;
+    }
     
     Py_INCREF(cx);
     self->cx = cx;
     self->val = JSVAL_VOID;
     self->obj = NULL;
-    goto success;
+    goto done;
 
-error:
-    ERROR("spidermonkey.Object.new");
-success:
+done:
     return (PyObject*) self;
 }
 
