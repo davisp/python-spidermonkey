@@ -14,7 +14,8 @@
 
 #include <jsapi.h>
 
-#include "common/common.h"
+#include "utils/utils.h"
+#include "convert/convert.h"
 #include "javascript/javascript.h"
 #include "python/python.h"
 

@@ -6,8 +6,8 @@
  *
  */
 
-#ifndef PYSM_COMMON_H
-#define PYSM_COMMON_H
+#ifndef PYSM_CONVERT_H
+#define PYSM_CONVERT_H
 
 #include "python/python.h"
 

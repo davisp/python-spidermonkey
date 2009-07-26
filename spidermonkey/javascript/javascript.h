@@ -9,6 +9,8 @@
 #ifndef PYSM_JAVASCRIPT_H
 #define PYSM_JAVASCRIPT_H
 
+#include <spidermonkey.h>
+
 extern JSClass js_global_class;
 
 JSClass* create_class(Context* cx, PyObject* pyobj);
