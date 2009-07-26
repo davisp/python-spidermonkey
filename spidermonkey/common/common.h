@@ -29,6 +29,8 @@ PyObject* js2py_string(Context* cx, jsval val);
 jsval py2js_object(Context* cx, PyObject* pyobj);
 PyObject* js2py_object(Context* cx, jsval val);
 
+PyObject* js2py_array(Context* cx, jsval val);
+
 PyObject* js2py_function(Context* cx, jsval val, jsval parent);
 
 #endif

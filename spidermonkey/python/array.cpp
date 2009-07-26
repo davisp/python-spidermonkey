@@ -8,12 +8,6 @@
 
 #include <spidermonkey.h>
 
-PyObject*
-js2py_array(Context* cx, jsval val)
-{
-    return make_object(ArrayType, cx, val);
-}
-
 Py_ssize_t
 Array_length(Object* self)
 {
