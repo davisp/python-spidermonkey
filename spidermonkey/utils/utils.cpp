@@ -1,18 +1,13 @@
 
 #include <spidermonkey.h>
 
-PyObjXDR::PyObjXDR(PyObject* p)
+JSRequest::JSRequest(JSContext* cx)
 {
-    this->data = p;
+    this->cx = cx;
+    JS_BeginRequest(cx);
 }
 
-PyObjXDR::~PyObjXDR()
+JSRequest::~JSRequest()
 {
-    Py_XDECREF(this->data);
-}
-
-PyObject*
-PyObjXDR::get()
-{
-    return this->data
+    JS_EndRequest(cx);
 }

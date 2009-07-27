@@ -6,7 +6,9 @@
  *
  */
 
-#include <spidermonkey.h>
+#include <jsapi.h>
+#include "convert.h"
+#include "python/python.h"
 
 jsval
 py2js(Context* cx, PyObject* obj)

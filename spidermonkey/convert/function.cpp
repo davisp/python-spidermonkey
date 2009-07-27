@@ -1,5 +1,5 @@
 
-#include <spidermonkey.h>
+#include "convert.h"
 
 PyObject*
 js2py_function(Context* cx, jsval val, jsval parent)

@@ -9,6 +9,9 @@
 #ifndef PYSM_PYTHON_H
 #define PYSM_PYTHON_H
 
+#include <Python.h>
+#include <jsapi.h>
+
 extern PyTypeObject _ArrayType;
 extern PyTypeObject _ContextType;
 extern PyTypeObject _FunctionType;
@@ -16,6 +19,15 @@ extern PyTypeObject _HashCObjType;
 extern PyTypeObject _IteratorType;
 extern PyTypeObject _ObjectType;
 extern PyTypeObject _RuntimeType;
+
+extern PyTypeObject* RuntimeType;
+extern PyTypeObject* ContextType;
+extern PyTypeObject* ClassType;
+extern PyTypeObject* ObjectType;
+extern PyTypeObject* ArrayType;
+extern PyTypeObject* FunctionType;
+extern PyTypeObject* IteratorType;
+extern PyTypeObject* HashCObjType;
 
 typedef struct {
     PyObject_HEAD

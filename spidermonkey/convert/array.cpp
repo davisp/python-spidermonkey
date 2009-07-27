@@ -1,4 +1,4 @@
-#include <spidermonkey.h>
+#include "convert.h"
 
 PyObject*
 js2py_array(Context* cx, jsval val)

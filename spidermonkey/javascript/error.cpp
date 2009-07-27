@@ -9,66 +9,52 @@
 #include <spidermonkey.h>
 #include "frameobject.h"
 
+JSBool
+js_error(JSContext* cx, const char* err)
+{
+    JS_ReportError(cx, err);
+    return JS_FALSE;
+}
+
 void
 add_frame(const char* srcfile, const char* funcname, int linenum)
 {
-    PyObject* src = NULL;
-    PyObject* func = NULL;
-    PyObject* glbl = NULL;
-    PyObject* tpl = NULL;
-    PyObject* str = NULL;
-    PyCodeObject* code = NULL;
-    PyFrameObject* frame = NULL;
+    PyObjectXDR src = PyString_FromString(srcfile);
+    PyObjectXDR func = PyString_FromString(funcname);
+    PyObjectXDR tpl = PyTuple_New(0);
+    PyObjectXDR str = PyString_FromString("");
 
-    src = PyString_FromString(srcfile);
-    if(src == NULL) goto error;
+    // This is a borrowed reference, hence no PyObjectXDR so we
+    // don't decref it.
+    PyPtr<PyObject> glbl = PyModule_GetDict(SpidermonkeyModule);
 
-    func = PyString_FromString(funcname);
-    if(func == NULL) goto error;
-    
-    glbl = PyModule_GetDict(SpidermonkeyModule);
-    if(glbl == NULL) goto error;
+    if(!src || !func || !glbl || !tpl || !str) return;
 
-    tpl = PyTuple_New(0);
-    if(tpl == NULL) goto error;
-
-    str = PyString_FromString("");
-    if(str == NULL) goto error;
-
-    code = PyCode_New(
+    PyCodeXDR code = PyCode_New(
         0,                      /*co_argcount*/
         0,                      /*co_nlocals*/
         0,                      /*co_stacksize*/
         0,                      /*co_flags*/
-        str,                    /*co_code*/
-        tpl,                    /*co_consts*/
-        tpl,                    /*co_names*/
-        tpl,                    /*co_varnames*/
-        tpl,                    /*co_freevars*/
-        tpl,                    /*co_cellvars*/
-        src,                    /*co_filename*/
-        func,                   /*co_name*/
+        str.get(),              /*co_code*/
+        tpl.get(),              /*co_consts*/
+        tpl.get(),              /*co_names*/
+        tpl.get(),              /*co_varnames*/
+        tpl.get(),              /*co_freevars*/
+        tpl.get(),              /*co_cellvars*/
+        src.get(),              /*co_filename*/
+        func.get(),             /*co_name*/
         linenum,                /*co_firstlineno*/
-        str                     /*co_lnotab*/
+        str.get()               /*co_lnotab*/
     );
-    if(code == NULL) goto error;
+    if(!code) return;
    
-    frame = PyFrame_New(PyThreadState_Get(), code, glbl, NULL);
-    if(frame == NULL) goto error;
+    PyFrameXDR frame = PyFrame_New(
+        PyThreadState_Get(), code.get(), glbl.get(), NULL
+    );
+    if(!frame) return;
     
     frame->f_lineno = linenum;
-    PyTraceBack_Here(frame);
-
-    goto success;
-    
-error:
-success:
-    Py_XDECREF(func);
-    Py_XDECREF(src);
-    Py_XDECREF(tpl);
-    Py_XDECREF(str);
-    Py_XDECREF(code);
-    Py_XDECREF(frame);
+    PyTraceBack_Here(frame.get());
 }
 
 void

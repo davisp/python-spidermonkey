@@ -9,27 +9,8 @@
 #include <spidermonkey.h>
 #include <jsobj.h>
 
-/*
-    This is a fairly unsafe operation in so much as
-    I'm relying on JavaScript to never call one of
-    our callbacks on an object we didn't create.
-
-    Also, of note, we're not incref'ing the Python
-    object.
-*/
-PyObject*
-get_py_obj(JSContext* cx, JSObject* obj)
-{
-    jsval priv;
-
-    if(!JS_GetReservedSlot(cx, obj, 0, &priv))
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to get slot data.");
-        return NULL;
-    }
-
-    return (PyObject*) JSVAL_TO_PRIVATE(priv);
-}
+PyObject* get_py_obj(JSContext* cx, JSObject* obj);
+PyObject* mk_args_tpl(Context* pycx, JSContext* jscx, uintN argc, jsval* argv);
 
 JSBool
 js_add_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* val)
@@ -38,117 +19,88 @@ js_add_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* val)
 }
 
 JSBool
-js_del_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* val)
+js_del_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
-    Context* pycx = NULL;
-    PyObject* pyobj = NULL;
-    PyObject* pykey = NULL;
-    JSBool ret = JS_FALSE;
+    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    if(!pycx) return js_error(jscx, "Failed to get Python context.");
     
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to get JS Context.");
-        goto error;
-    }
+    PyPtr<PyObject> pyobj = get_py_obj(jscx, jsobj);
+    if(!pyobj) return js_error(jscx, "Failed to get Python object.");
     
-    pyobj = get_py_obj(jscx, jsobj);
-    if(pyobj == NULL) goto error;
-    
-    pykey = js2py(pycx, key);
-    if(pykey == NULL) goto error;
+    PyObjectXDR pykey = js2py(pycx.get(), key);
+    if(!pykey) return js_error(jscx, "Failed to covert object key.");
 
-    if(Context_has_access(pycx, jscx, pyobj, pykey) <= 0) goto error;
+    if(Context_has_access(pycx.get(), jscx, pyobj.get(), pykey.get()) <= 0)
+        return js_error(jscx, "Access denied.");
 
-    if(PyObject_DelItem(pyobj, pykey) < 0)
+    if(PyObject_DelItem(pyobj.get(), pykey.get()) < 0)
     {
         PyErr_Clear();
-        if(PyObject_DelAttr(pyobj, pykey) < 0)
+        if(PyObject_DelAttr(pyobj.get(), pykey.get()) < 0)
         {
             PyErr_Clear();
-            *val = JSVAL_FALSE;
+            *rval = JSVAL_FALSE;
         }
     }
    
-    ret = JS_TRUE;
-    goto success;
-    
-error:
-success:
-    Py_XDECREF(pykey);
-    return ret;
+    return JS_TRUE;
 }
 
 JSBool
-js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* val)
+js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
-    Context* pycx = NULL;
-    PyObject* pyobj = NULL;
-    PyObject* pykey = NULL;
-    PyObject* utf8 = NULL;
-    PyObject* pyval = NULL;
-    JSBool ret = JS_FALSE;
-    const char* data;
+    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    if(!pycx) return js_error(jscx, "Failed to get Python context.");
 
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to get JS Context.");
-        goto done;
-    }
+    PyPtr<PyObject> pyobj = get_py_obj(jscx, jsobj);
+    if(!pyobj) return js_error(jscx, "Failed to get Python object.");
     
-    pyobj = get_py_obj(jscx, jsobj);
-    if(pyobj == NULL) goto done;
+    PyObjectXDR pykey = js2py(pycx.get(), key);
+    if(!pykey) return js_error(jscx, "Failed to convert key.");
     
-    pykey = js2py(pycx, key);
-    if(pykey == NULL) goto done;
-
-    if(Context_has_access(pycx, jscx, pyobj, pykey) <= 0) goto done;
+    if(Context_has_access(pycx.get(), jscx, pyobj.get(), pykey.get()) <= 0)
+        return js_error(jscx, "Access denied.");
     
     // Yeah. It's ugly as sin.
-    if(PyString_Check(pykey) || PyUnicode_Check(pykey))
+    if(PyString_Check(pykey.get()) || PyUnicode_Check(pykey.get()))
     {
-        utf8 = PyUnicode_AsUTF8String(pykey);
-        if(utf8 == NULL) goto done;
+        PyObjectXDR utf8 = PyUnicode_AsUTF8String(pykey.get());
+        if(!utf8) return js_error(jscx, "Failed to convert string to UTF-8");
 
-        data = PyString_AsString(utf8);
-        if(data == NULL) goto done;
+        const char* data = PyString_AsString(utf8.get());
+        if(data == NULL)
+            return js_error(jscx, "Failed to convert string to buffer.");
 
         if(strcmp("__iterator__", data) == 0)
         {
-            if(!new_py_iter(pycx, pyobj, val)) goto done;
-            if(*val != JSVAL_VOID)
-            {
-                ret = JS_TRUE;
-                goto done;
-            }
+            if(!new_py_iter(pycx.get(), pyobj.get(), rval))
+                return JS_FALSE;
+            
+            if(*rval != JSVAL_VOID)
+                return JS_TRUE;
+
+            return JS_FALSE;
         }
     }
 
-    pyval = PyObject_GetItem(pyobj, pykey);
-    if(pyval == NULL)
-    {
+    PyObjectXDR pyval = PyObject_GetItem(pyobj.get(), pykey.get());
+    if(!pyval)
+    {        
         PyErr_Clear();
-        pyval = PyObject_GetAttr(pyobj, pykey);
-        if(pyval == NULL)
+        pyval = PyObject_GetAttr(pyobj.get(), pykey.get());
+        if(!pyval)
         {
             PyErr_Clear();
-            ret = JS_TRUE;
-            *val = JSVAL_VOID;
-            goto done;
+            *rval = JSVAL_VOID;
+            return JS_TRUE;
         }
     }
 
-    *val = py2js(pycx, pyval);
-    if(*val == JSVAL_VOID) goto done;
-    ret = JS_TRUE;
-
-done:
-    Py_XDECREF(pykey);
-    Py_XDECREF(pyval);
-    Py_XDECREF(utf8);
-
-    return ret;
+    *rval = py2js(pycx.get(), pyval.get());
+    if(*rval == JSVAL_VOID)
+        return JS_FALSE;
+    
+    return JS_TRUE;
 }
 
 JSBool
@@ -226,35 +178,6 @@ js_finalize(JSContext* jscx, JSObject* jsobj)
     Py_DECREF(pyobj);
 }
 
-PyObject*
-mk_args_tuple(Context* pycx, JSContext* jscx, uintN argc, jsval* argv)
-{
-    PyObject* tpl = NULL;
-    PyObject* tmp = NULL;
-    int idx;
-    
-    tpl = PyTuple_New(argc);
-    if(tpl == NULL)
-    {
-        JS_ReportError(jscx, "Failed to build args value.");
-        goto error;
-    }
-    
-    for(idx = 0; idx < argc; idx++)
-    {
-        tmp = js2py(pycx, argv[idx]);
-        if(tmp == NULL) goto error;
-        PyTuple_SET_ITEM(tpl, idx, tmp);
-    }
-
-    goto success;
-
-error:
-    Py_XDECREF(tpl);
-success:
-    return tpl;
-}
-
 JSBool
 js_call(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
 {
@@ -286,7 +209,7 @@ js_call(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
 
     if(Context_has_access(pycx, jscx, pyobj, attrcheck) <= 0) goto error;
 
-    tpl = mk_args_tuple(pycx, jscx, argc, argv);
+    tpl = mk_args_tpl(pycx, jscx, argc, argv);
     if(tpl == NULL) goto error;
     
     ret = PyObject_Call(pyobj, tpl, NULL);
@@ -355,7 +278,7 @@ js_ctor(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
 
     if(Context_has_access(pycx, jscx, pyobj, attrcheck) <= 0) goto error;
 
-    tpl = mk_args_tuple(pycx, jscx, argc, argv);
+    tpl = mk_args_tpl(pycx, jscx, argc, argv);
     if(tpl == NULL) goto error;
     
     ret = PyObject_CallObject(pyobj, tpl);
@@ -443,5 +366,52 @@ success:
     return ret;
 }
 
+/*
+    This is a fairly unsafe operation in so much as
+    I'm relying on JavaScript to never call one of
+    our callbacks on an object we didn't create.
 
+    Also, of note, we're not incref'ing the Python
+    object.
+*/
+PyObject*
+get_py_obj(JSContext* cx, JSObject* obj)
+{
+    jsval priv;
 
+    if(!JS_GetReservedSlot(cx, obj, 0, &priv))
+    {
+        js_error(cx, "Failed to get object's slot data.");
+        return NULL;
+    }
+
+    return (PyObject*) JSVAL_TO_PRIVATE(priv);
+}
+
+PyObject*
+mk_args_tpl(Context* pycx, JSContext* jscx, uintN argc, jsval* argv)
+{
+    PyObject* tpl = NULL;
+    PyObject* tmp = NULL;
+    
+    tpl = PyTuple_New(argc);
+    if(tpl == NULL)
+    {
+        JS_ReportError(jscx, "Failed to build args value.");
+        goto error;
+    }
+    
+    for(unsigned int idx = 0; idx < argc; idx++)
+    {
+        tmp = js2py(pycx, argv[idx]);
+        if(tmp == NULL) goto error;
+        PyTuple_SET_ITEM(tpl, idx, tmp);
+    }
+
+    goto success;
+
+error:
+    Py_XDECREF(tpl);
+success:
+    return tpl;
+}

@@ -9,9 +9,11 @@
 #ifndef PYSM_JAVASCRIPT_H
 #define PYSM_JAVASCRIPT_H
 
-#include <spidermonkey.h>
+#include "python/python.h"
 
 extern JSClass js_global_class;
+
+JSBool js_error(JSContext* cx, const char* err);
 
 JSClass* create_class(Context* cx, PyObject* pyobj);
 JSBool new_py_iter(Context* cx, PyObject* obj, jsval* rval);

@@ -1,5 +1,6 @@
 
-#include <spidermonkey.h>
+#include "convert.h"
+#include "javascript/javascript.h"
 
 jsval
 py2js_object(Context* cx, PyObject* pyobj)

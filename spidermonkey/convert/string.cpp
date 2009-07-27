@@ -6,7 +6,7 @@
  *
  */
 
-#include <spidermonkey.h>
+#include "convert.h"
 
 JSString*
 py2js_string_obj(Context* cx, PyObject* str)

@@ -26,197 +26,115 @@ js_global_class = {
 JSBool
 add_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
-    JSObject* obj = NULL;
+    if(JSVAL_IS_NULL(*rval) || !JSVAL_IS_OBJECT(*rval))
+        return JS_TRUE;
 
-    if(JSVAL_IS_NULL(*rval) || !JSVAL_IS_OBJECT(*rval)) return JS_TRUE;
+    if(JS_ObjectIsFunction(jscx, JSVAL_TO_OBJECT(*rval)))
+        return set_prop(jscx, jsobj, key, rval);
 
-    obj = JSVAL_TO_OBJECT(*rval);
-    if(JS_ObjectIsFunction(jscx, obj)) return set_prop(jscx, jsobj, key, rval);
     return JS_TRUE;
 }
 
 JSBool
 del_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
-    Context* pycx = NULL;
-    PyObject* pykey = NULL;
-    PyObject* pyval = NULL;
-    JSBool ret = JS_FALSE;
+    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    if(!pycx) return js_error(jscx, "Failed to get Python context.");
 
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        JS_ReportError(jscx, "Failed to get Python context.");
-        goto done;
-    }
+    if(pycx->pyglobal == NULL) return JS_TRUE;
+    if(!PyObject_HasAttrString(pycx->pyglobal, "__delitem__")) return JS_TRUE;
 
-    // Bail if there's no registered global handler.
-    if(pycx->pyglobal == NULL)
-    {
-        ret = JS_TRUE;
-        goto done;
-    }
+    PyObjectXDR pykey = js2py(pycx.get(), key);
+    if(!pykey) return js_error(jscx, "Failed to covert key.");
+
+    if(Context_has_access(pycx.get(), jscx, pycx->pyglobal, pykey.get()) <= 0)
+        return js_error(jscx, "Access denied.");
     
-    // Check access to python land.
-    if(Context_has_access(pycx, jscx, pycx->pyglobal, pykey) <= 0) goto done;
-
-    // Bail if the global doesn't have a __delitem__
-    if(!PyObject_HasAttrString(pycx->pyglobal, "__delitem__"))
-    {
-        ret = JS_TRUE;
-        goto done;
-    }
-
-    pykey = js2py(pycx, key);
-    if(pykey == NULL) goto done;
-
-    if(PyObject_DelItem(pycx->pyglobal, pykey) < 0) goto done;
-
-    ret = JS_TRUE;
-
-done:
-    Py_XDECREF(pykey);
-    Py_XDECREF(pyval);
-    return ret;
+    if(PyObject_DelItem(pycx->pyglobal, pykey.get()) < 0)
+        return js_error(jscx, "Failed to delete key.");
+    
+    return JS_TRUE;
 }
 
 JSBool
 get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
-    Context* pycx = NULL;
-    PyObject* pykey = NULL;
-    PyObject* pyval = NULL;
-    JSBool ret = JS_FALSE;
+    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    if(!pycx) return js_error(jscx, "Failed to get Python context.");
+    
+    if(pycx->pyglobal == NULL) return JS_TRUE;
+    
+    PyObjectXDR pykey = js2py(pycx.get(), key);
+    if(!pykey) return js_error(jscx, "Failed to convert key.");
+    
+    if(Context_has_access(pycx.get(), jscx, pycx->pyglobal, pykey.get()) <= 0)
+        return js_error(jscx, "Access denied.");
 
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        JS_ReportError(jscx, "Failed to get Python context.");
-        goto done;
-    }
-
-    // Bail if there's no registered global handler.
-    if(pycx->pyglobal == NULL)
-    {
-        ret = JS_TRUE;
-        goto done;
-    }
-
-    pykey = js2py(pycx, key);
-    if(pykey == NULL) goto done;
-
-    if(Context_has_access(pycx, jscx, pycx->pyglobal, pykey) <= 0) goto done;
-
-    pyval = PyObject_GetItem(pycx->pyglobal, pykey);
-    if(pyval == NULL)
+    PyObjectXDR pyval = PyObject_GetItem(pycx->pyglobal, pykey.get());
+    if(!pyval)
     {
         if(PyErr_GivenExceptionMatches(PyErr_Occurred(), PyExc_KeyError))
         {
             PyErr_Clear();
-            ret = JS_TRUE;
+            return JS_TRUE;
         }
-        goto done;
+        return js_error(jscx, "Failed to get value.");
     }
 
-    *rval = py2js(pycx, pyval);
-    if(*rval == JSVAL_VOID) goto done;
-    ret = JS_TRUE;
-
-done:
-    Py_XDECREF(pykey);
-    Py_XDECREF(pyval);
-    return ret;
+    *rval = py2js(pycx.get(), pyval.get());
+    if(*rval == JSVAL_VOID)
+        return js_error(jscx, "Failed to convert value.");
+    
+    return JS_TRUE;
 }
 
 JSBool
 set_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
-    Context* pycx = NULL;
-    PyObject* pykey = NULL;
-    PyObject* pyval = NULL;
-    JSBool ret = JS_FALSE;
+    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    if(!pycx) return js_error(jscx, "Failed to get Python context.");
+    
+    if(pycx->pyglobal == NULL) return JS_TRUE;
 
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        JS_ReportError(jscx, "Failed to get Python context.");
-        goto done;
-    }
+    PyObjectXDR pykey = js2py(pycx.get(), key);
+    if(!pykey) return js_error(jscx, "Failed to convert key.");
 
-    // Bail if there's no registered global handler.
-    if(pycx->pyglobal == NULL)
-    {
-        ret = JS_TRUE;
-        goto done;
-    }
+    if(Context_has_access(pycx.get(), jscx, pycx->pyglobal, pykey.get()) <= 0)
+        return js_error(jscx, "Access denied.");
 
-    pykey = js2py(pycx, key);
-    if(pykey == NULL) goto done;
+    PyObjectXDR pyval = js2py(pycx.get(), *rval);
+    if(!pyval) return js_error(jscx, "Failed to convert value.");
 
-    if(Context_has_access(pycx, jscx, pycx->pyglobal, pykey) <= 0) goto done;
+    if(PyObject_SetItem(pycx->pyglobal, pykey.get(), pyval.get()) < 0)
+        return js_error(jscx, "Failed to set value.");
 
-    pyval = js2py(pycx, *rval);
-    if(pyval == NULL) goto done;
-
-    if(PyObject_SetItem(pycx->pyglobal, pykey, pyval) < 0) goto done;
-
-    ret = JS_TRUE;
-
-done:
-    Py_XDECREF(pykey);
-    Py_XDECREF(pyval);
-    return ret;
+    return JS_TRUE;
 }
 
 JSBool
 resolve(JSContext* jscx, JSObject* jsobj, jsval key)
 {
-    Context* pycx = NULL;
-    PyObject* pykey = NULL;
     jsid pid;
-    JSBool ret = JS_FALSE;
 
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        JS_ReportError(jscx, "Failed to get Python context.");
-        goto done;
-    }
+    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    if(!pycx) return js_error(jscx, "Failed to get Python context.");
 
-    // Bail if there's no registered global handler.
-    if(pycx->pyglobal == NULL)
-    {
-        ret = JS_TRUE;
-        goto done;
-    }
-
-    pykey = js2py(pycx, key);
-    if(pykey == NULL) goto done;
+    if(pycx->pyglobal == NULL) return JS_TRUE;
     
-    if(Context_has_access(pycx, jscx, pycx->pyglobal, pykey) <= 0) goto done;
+    PyObjectXDR pykey = js2py(pycx.get(), key);
+    if(!pykey) return js_error(jscx, "Failed to convert key.");
+    
+    if(Context_has_access(pycx.get(), jscx, pycx->pyglobal, pykey.get()) <= 0)
+        return js_error(jscx, "Access denied.");
 
-    if(!PyMapping_HasKey(pycx->pyglobal, pykey))
-    {
-        ret = JS_TRUE;
-        goto done;
-    }
+    if(!PyMapping_HasKey(pycx->pyglobal, pykey.get())) return JS_TRUE;
 
     if(!JS_ValueToId(jscx, key, &pid))
-    {
-        JS_ReportError(jscx, "Failed to convert property id.");
-        goto done;
-    }
+        return js_error(jscx, "Failed to convert property id.");
 
     if(!js_DefineProperty(jscx, pycx->jsglobal, pid, JSVAL_VOID, NULL, NULL,
                             JSPROP_SHARED, NULL))
-    {
-        JS_ReportError(jscx, "Failed to define property.");
-        goto done;
-    }
+        return js_error(jscx, "Failed to define property.");
 
-    ret = JS_TRUE;
-
-done:
-    Py_XDECREF(pykey);
-    return ret;
+    return JS_TRUE;
 }

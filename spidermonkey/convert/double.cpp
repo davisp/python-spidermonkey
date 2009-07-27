@@ -6,7 +6,7 @@
  *
  */
 
-#include <spidermonkey.h>
+#include "convert.h"
 
 jsval
 py2js_double(Context* cx, PyObject* obj)

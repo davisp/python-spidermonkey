@@ -6,28 +6,98 @@
  *
  */
 
-#ifndef PYSM_CONVERT_H
-#define PYSM_CONVERT_H
+#ifndef PYSM_UTILS_H
+#define PYSM_UTILS_H
 
 #include <Python.h>
+#include <frameobject.h>
 
-class PyObjXDR {
+#include <iostream>
+
+template<class T> class PyPtr {
     public:
-        explicit PyObjXDR(PyObject* p = 0);
-        ~PyObjXDR();
-
-        void reset(PyObject* p = 0);
-    
-        PyObject* get() const;
-    
-    protected:
-        PyObjXDR() {}
-    
-    private:
-        PyObjXDR(const PyObjXDR&);
-        const PyObjXDR& operator=(const PyObjXDR&);
+        PyPtr(T* p = 0)
+        {
+            this->data = p;
+        }
         
-        PyObject*   data;
+        ~PyPtr() {}
+
+        T*
+        get() const
+        {
+            return this->data;
+        }
+        
+        void
+        reset()
+        {
+            this->data = NULL;
+        }
+
+        T*
+        operator->()
+        {
+            return this->data;
+        }
+        
+        PyPtr<T>&
+        operator=(T* p)
+        {
+            this->data = p;
+            return *this;
+        }
+        
+        PyPtr<T>&
+        operator=(PyPtr<T>& p)
+        {
+            this->data = p.data;
+            p.reset();
+            return *this;
+        }
+    
+        operator bool () const
+        {
+            return this->data != NULL;
+        }
+        
+    protected:
+        T*   data;
+};
+
+template <class T> class PyXDR : public PyPtr<T> {
+    public:
+        PyXDR(T* p = 0)
+        {
+            this->data = p;
+        }
+        
+        ~PyXDR()
+        {
+            Py_XDECREF(this->data);
+        }
+        
+        PyXDR<T>&
+        operator=(T* p)
+        {
+            this->data = p;
+            return *this;
+        }
+};
+
+typedef PyXDR<PyObject> PyObjectXDR;
+typedef PyXDR<PyCodeObject> PyCodeXDR;
+typedef PyXDR<PyFrameObject> PyFrameXDR;
+
+
+// JS UTILS
+
+class JSRequest {
+    public:
+        JSRequest(JSContext* cx);
+        ~JSRequest();
+    private:
+        JSContext* cx;
 };
 
 #endif
