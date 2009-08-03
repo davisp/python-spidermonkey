@@ -106,203 +106,116 @@ js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 JSBool
 js_set_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* val)
 {
-    Context* pycx = NULL;
-    PyObject* pyobj = NULL;
-    PyObject* pykey = NULL;
-    PyObject* pyval = NULL;
-    JSBool ret = JS_FALSE;
+    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
+    if(!pycx) return js_error(jscx, "Failed to get Python context.");
     
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        JS_ReportError(jscx, "Failed to find a Python Context.");
-        goto error;
-    }
+    PyObject* pyobj = get_py_obj(jscx, jsobj);
+    if(!pyobj) return js_error(jscx, "Failed to find a Python object.");
     
-    pyobj = get_py_obj(jscx, jsobj);
-    if(pyobj == NULL)
-    {
-        JS_ReportError(jscx, "Failed to find a Python object.");
-        goto error;
-    }
+    PyObjectXDR pykey = js2py(pycx, key);
+    if(!pykey) return js_error(jscx, "Failed to convert key to Python.");
     
-    pykey = js2py(pycx, key);
-    if(pykey == NULL)
-    {
-        JS_ReportError(jscx, "Failed to convert key to Python.");
-        goto error;
-    }
+    if(Context_has_access(pycx, jscx, pyobj, pykey.get()) <= 0)
+        return js_error(jscx, "Access denied.");
+    
+    PyObjectXDR pyval = js2py(pycx, *val);
+    if(!pyval) return js_error(jscx, "Failed to convert value to Python.");
 
-    if(Context_has_access(pycx, jscx, pyobj, pykey) <= 0) goto error;
-
-    pyval = js2py(pycx, *val);
-    if(pyval == NULL)
-    {
-        JS_ReportError(jscx, "Failed to convert value to Python.");
-        goto error;
-    }
-
-    if(PyObject_SetItem(pyobj, pykey, pyval) < 0)
+    if(PyObject_SetItem(pyobj, pykey.get(), pyval.get()) < 0)
     {
         PyErr_Clear();
-        if(PyObject_SetAttr(pyobj, pykey, pyval) < 0) goto error;
+        if(PyObject_SetAttr(pyobj, pykey.get(), pyval.get()) < 0)
+            return js_error(jscx, "Failed to set Python property.");
     }
 
-    ret = JS_TRUE;
-    goto success;
-    
-error:
-success:
-    Py_XDECREF(pykey);
-    Py_XDECREF(pyval);
-    return ret;
+    return JS_TRUE;
 }
 
 void
 js_finalize(JSContext* jscx, JSObject* jsobj)
 {
     Context* pycx = (Context*) JS_GetContextPrivate(jscx);
-    PyObject* pyobj = NULL;
-  
-    if(pycx == NULL)
+    if(!pycx)
     {
         // Not much else we can do but yell.
         fprintf(stderr, "*** NO PYTHON CONTEXT ***\n");
         return;
     }
 
-    JS_BeginRequest(jscx);
-    pyobj = get_py_obj(jscx, jsobj);
-    JS_EndRequest(jscx);
-
+    JSRequest req(jscx);
+    PyObject* pyobj = get_py_obj(jscx, jsobj);
     Py_DECREF(pyobj);
 }
 
 JSBool
 js_call(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
 {
-    Context* pycx = NULL;
-    PyObject* pyobj = NULL;
-    PyObject* tpl = NULL;
-    PyObject* ret = NULL;
-    PyObject* attrcheck = NULL;
-    JSBool jsret = JS_FALSE;
-    
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        JS_ReportError(jscx, "Failed to get Python context.");
-        goto error;
-    }
-    
-    pyobj = get_py_obj(jscx, JSVAL_TO_OBJECT(argv[-2]));
-    
+    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
+    if(!pycx) return js_error(jscx, "Failed to get Python context.");
+
+    PyObject* pyobj = get_py_obj(jscx, JSVAL_TO_OBJECT(argv[-2]));    
     if(!PyCallable_Check(pyobj))
-    {
-        JS_ReportError(jscx, "Object is not callable.");
-        goto error;
-    }
+        return js_error(jscx, "Object is not callable.");
 
     // Use '__call__' as a notice that we want to execute a function.
-    attrcheck = PyString_FromString("__call__");
-    if(attrcheck == NULL) goto error;
+    PyObjectXDR attrcheck = PyString_FromString("__call__");
+    if(!attrcheck) return js_error(jscx, "Failed to create attribute check.");
 
-    if(Context_has_access(pycx, jscx, pyobj, attrcheck) <= 0) goto error;
+    if(Context_has_access(pycx, jscx, pyobj, attrcheck.get()) <= 0)
+        return js_error(jscx, "Access denied.");
 
-    tpl = mk_args_tpl(pycx, jscx, argc, argv);
-    if(tpl == NULL) goto error;
+    PyObjectXDR tpl = mk_args_tpl(pycx, jscx, argc, argv);
+    if(!tpl) return js_error(jscx, "Failed to create function arguments.");
     
-    ret = PyObject_Call(pyobj, tpl, NULL);
-    if(ret == NULL)
+    PyObjectXDR ret = PyObject_Call(pyobj, tpl.get(), NULL);
+    if(!ret)
     {
         if(!PyErr_Occurred())
         {
             PyErr_SetString(PyExc_RuntimeError, "Failed to call object.");
         }
-        JS_ReportError(jscx, "Failed to call object.");
-        goto error;
+        
+        return js_error(jscx, "Failed to call object.");
     }
     
-    *rval = py2js(pycx, ret);
+    *rval = py2js(pycx, ret.get());
     if(*rval == JSVAL_VOID)
-    {
-        JS_ReportError(jscx, "Failed to convert Python return value.");
-        goto error;
-    }
+        return js_error(jscx, "Failed to convert Python return value.");
 
-    jsret = JS_TRUE;
-    goto success;
-
-error:
-success:
-    Py_XDECREF(tpl);
-    Py_XDECREF(ret);
-    Py_XDECREF(attrcheck);
-    return jsret;
+    return JS_TRUE;
 }
 
 JSBool
 js_ctor(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
 {
-    Context* pycx = NULL;
-    PyObject* pyobj = NULL;
-    PyObject* tpl = NULL;
-    PyObject* ret = NULL;
-    PyObject* attrcheck = NULL;
-    JSBool jsret = JS_FALSE;
+    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
+    if(!pycx) return js_error(jscx, "Failed to get Python context.");
     
-    pycx = (Context*) JS_GetContextPrivate(jscx);
-    if(pycx == NULL)
-    {
-        JS_ReportError(jscx, "Failed to get Python context.");
-        goto error;
-    }
-    
-    pyobj = get_py_obj(jscx, JSVAL_TO_OBJECT(argv[-2]));
-    
+    PyObject* pyobj = get_py_obj(jscx, JSVAL_TO_OBJECT(argv[-2]));
     if(!PyCallable_Check(pyobj))
-    {
-        JS_ReportError(jscx, "Object is not callable.");
-        goto error;
-    }
+        return js_error(jscx, "Object is not callable.");
 
     if(!PyType_Check(pyobj))
-    {
-        PyErr_SetString(PyExc_TypeError, "Object is not a Type object.");
-        goto error;
-    }
+        return js_error(jscx, "Object is not a Python type.");
 
     // Use '__init__' to signal use as a constructor.
-    attrcheck = PyString_FromString("__init__");
-    if(attrcheck == NULL) goto error;
+    PyObjectXDR attrcheck = PyString_FromString("__init__");
+    if(!attrcheck) return js_error(jscx, "Failed to create attribute check.");
 
-    if(Context_has_access(pycx, jscx, pyobj, attrcheck) <= 0) goto error;
+    if(Context_has_access(pycx, jscx, pyobj, attrcheck.get()) <= 0)
+        return js_error(jscx, "Access denied.");
 
-    tpl = mk_args_tpl(pycx, jscx, argc, argv);
-    if(tpl == NULL) goto error;
+    PyObjectXDR tpl = mk_args_tpl(pycx, jscx, argc, argv);
+    if(!tpl) return js_error(jscx, "Failed to create function arguments.");
     
-    ret = PyObject_CallObject(pyobj, tpl);
-    if(ret == NULL)
-    {
-        JS_ReportError(jscx, "Failed to construct object.");
-        goto error;
-    }
+    PyObjectXDR ret = PyObject_CallObject(pyobj, tpl.get());
+    if(!ret) return js_error(jscx, "Failed to construct new instance.");
     
-    *rval = py2js(pycx, ret);
+    *rval = py2js(pycx, ret.get());
     if(*rval == JSVAL_VOID)
-    {
-        JS_ReportError(jscx, "Failed to convert Python return value.");
-        goto error;
-    }
+        return js_error(jscx, "Failed to convert new Python instance.");
 
-    jsret = JS_TRUE;
-    goto success;
-
-error:
-success:
-    Py_XDECREF(tpl);
-    Py_XDECREF(ret);
-    return jsret;
+    return JS_TRUE;
 }
 
 JSClass*
