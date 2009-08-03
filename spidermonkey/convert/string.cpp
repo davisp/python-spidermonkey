@@ -6,53 +6,44 @@
  *
  */
 
-#include "convert.h"
+#include <spidermonkey.h>
 
 JSString*
 py2js_string_obj(Context* cx, PyObject* str)
 {
-    PyObject* conv = NULL;
-    PyObject* encoded = NULL;
-    JSString* ret = NULL;
-    char* bytes;
-    Py_ssize_t len;
-
+    PyObjectXDR conv;
     if(PyString_Check(str))
     {
-        conv = PyUnicode_FromEncodedObject(str, "utf-8", "replace");
-        if(conv == NULL) goto error;
-        str = conv;
+        conv.set(PyUnicode_FromEncodedObject(str, "utf-8", "replace"));
+        if(!conv) return NULL;
+        str = conv.get();
     }
     else if(!PyUnicode_Check(str))
     {
         PyErr_SetString(PyExc_TypeError, "Invalid string conversion.");
-        goto error;
+        return NULL;
     }
 
-    encoded = PyUnicode_AsEncodedString(str, "utf-16", "strict");
-    if(encoded == NULL) goto error;
-    if(PyString_AsStringAndSize(encoded, &bytes, &len) < 0) goto error;
+    PyObjectXDR enc = PyUnicode_AsEncodedString(str, "utf-16", "strict");
+    if(!enc) return NULL;
+
+    char* bytes;
+    Py_ssize_t len;
+    if(PyString_AsStringAndSize(enc.get(), &bytes, &len) < 0)return NULL;
+
     if(len < 2)
     {
         PyErr_SetString(PyExc_ValueError, "Failed to find byte-order mark.");
-        goto error;
+        return NULL;
     }
 
     if(((unsigned short*) bytes)[0] != 0xFEFF)
     {
         PyErr_SetString(PyExc_ValueError, "Invalid UTF-16 BOM");
-        goto error;
+        return NULL;
     }
 
-    ret = JS_NewUCStringCopyN(cx->cx, (jschar*) (bytes+2), (len/2)-1);
-    
-    goto success;
-
-error:
-success:
-    Py_XDECREF(conv);
-    Py_XDECREF(encoded);
-    return ret;
+    return JS_NewUCStringCopyN(cx->cx, (jschar*) (bytes+2), (len/2)-1);
 }
 
 jsval

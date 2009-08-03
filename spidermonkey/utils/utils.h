@@ -14,58 +14,7 @@
 
 #include <iostream>
 
-template<class T> class PyPtr {
-    public:
-        PyPtr(T* p = 0)
-        {
-            this->data = p;
-        }
-        
-        ~PyPtr() {}
-
-        T*
-        get() const
-        {
-            return this->data;
-        }
-        
-        void
-        reset()
-        {
-            this->data = NULL;
-        }
-
-        T*
-        operator->()
-        {
-            return this->data;
-        }
-        
-        PyPtr<T>&
-        operator=(T* p)
-        {
-            this->data = p;
-            return *this;
-        }
-        
-        PyPtr<T>&
-        operator=(PyPtr<T>& p)
-        {
-            this->data = p.data;
-            p.reset();
-            return *this;
-        }
-    
-        operator bool () const
-        {
-            return this->data != NULL;
-        }
-        
-    protected:
-        T*   data;
-};
-
-template <class T> class PyXDR : public PyPtr<T> {
+template <class T> class PyXDR {
     public:
         PyXDR(T* p = 0)
         {
@@ -76,13 +25,41 @@ template <class T> class PyXDR : public PyPtr<T> {
         {
             Py_XDECREF(this->data);
         }
-        
-        PyXDR<T>&
-        operator=(T* p)
+
+        PyXDR<T>& operator=(T* p)
         {
             this->data = p;
             return *this;
         }
+
+        T* operator->()
+        {
+            return this->data;
+        }
+        
+        operator bool () const
+        {
+            return this->data != NULL;
+        }
+        
+        T* get() const
+        {
+            return this->data;
+        }
+        
+        void set(T* p)
+        {
+            this->data = p;
+        }
+        
+        void release()
+        {
+            this->data = NULL;
+        }
+
+    protected:
+        T* data;
+
 };
 
 typedef PyXDR<PyObject> PyObjectXDR;

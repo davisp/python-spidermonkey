@@ -26,7 +26,7 @@ add_frame(const char* srcfile, const char* funcname, int linenum)
 
     // This is a borrowed reference, hence no PyObjectXDR so we
     // don't decref it.
-    PyPtr<PyObject> glbl = PyModule_GetDict(SpidermonkeyModule);
+    PyObject* glbl = PyModule_GetDict(SpidermonkeyModule);
 
     if(!src || !func || !glbl || !tpl || !str) return;
 
@@ -49,7 +49,7 @@ add_frame(const char* srcfile, const char* funcname, int linenum)
     if(!code) return;
    
     PyFrameXDR frame = PyFrame_New(
-        PyThreadState_Get(), code.get(), glbl.get(), NULL
+        PyThreadState_Get(), code.get(), glbl, NULL
     );
     if(!frame) return;
     

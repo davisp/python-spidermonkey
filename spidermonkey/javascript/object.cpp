@@ -21,22 +21,22 @@ js_add_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* val)
 JSBool
 js_del_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
-    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
     if(!pycx) return js_error(jscx, "Failed to get Python context.");
     
-    PyPtr<PyObject> pyobj = get_py_obj(jscx, jsobj);
+    PyObject* pyobj = get_py_obj(jscx, jsobj);
     if(!pyobj) return js_error(jscx, "Failed to get Python object.");
     
-    PyObjectXDR pykey = js2py(pycx.get(), key);
+    PyObjectXDR pykey = js2py(pycx, key);
     if(!pykey) return js_error(jscx, "Failed to covert object key.");
 
-    if(Context_has_access(pycx.get(), jscx, pyobj.get(), pykey.get()) <= 0)
+    if(Context_has_access(pycx, jscx, pyobj, pykey.get()) <= 0)
         return js_error(jscx, "Access denied.");
 
-    if(PyObject_DelItem(pyobj.get(), pykey.get()) < 0)
+    if(PyObject_DelItem(pyobj, pykey.get()) < 0)
     {
         PyErr_Clear();
-        if(PyObject_DelAttr(pyobj.get(), pykey.get()) < 0)
+        if(PyObject_DelAttr(pyobj, pykey.get()) < 0)
         {
             PyErr_Clear();
             *rval = JSVAL_FALSE;
@@ -49,16 +49,16 @@ js_del_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 JSBool
 js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
-    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
     if(!pycx) return js_error(jscx, "Failed to get Python context.");
 
-    PyPtr<PyObject> pyobj = get_py_obj(jscx, jsobj);
+    PyObject* pyobj = get_py_obj(jscx, jsobj);
     if(!pyobj) return js_error(jscx, "Failed to get Python object.");
     
-    PyObjectXDR pykey = js2py(pycx.get(), key);
+    PyObjectXDR pykey = js2py(pycx, key);
     if(!pykey) return js_error(jscx, "Failed to convert key.");
     
-    if(Context_has_access(pycx.get(), jscx, pyobj.get(), pykey.get()) <= 0)
+    if(Context_has_access(pycx, jscx, pyobj, pykey.get()) <= 0)
         return js_error(jscx, "Access denied.");
     
     // Yeah. It's ugly as sin.
@@ -73,7 +73,7 @@ js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 
         if(strcmp("__iterator__", data) == 0)
         {
-            if(!new_py_iter(pycx.get(), pyobj.get(), rval))
+            if(!new_py_iter(pycx, pyobj, rval))
                 return JS_FALSE;
             
             if(*rval != JSVAL_VOID)
@@ -83,11 +83,11 @@ js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
         }
     }
 
-    PyObjectXDR pyval = PyObject_GetItem(pyobj.get(), pykey.get());
+    PyObjectXDR pyval = PyObject_GetItem(pyobj, pykey.get());
     if(!pyval)
     {        
         PyErr_Clear();
-        pyval = PyObject_GetAttr(pyobj.get(), pykey.get());
+        pyval = PyObject_GetAttr(pyobj, pykey.get());
         if(!pyval)
         {
             PyErr_Clear();
@@ -96,7 +96,7 @@ js_get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
         }
     }
 
-    *rval = py2js(pycx.get(), pyval.get());
+    *rval = py2js(pycx, pyval.get());
     if(*rval == JSVAL_VOID)
         return JS_FALSE;
     

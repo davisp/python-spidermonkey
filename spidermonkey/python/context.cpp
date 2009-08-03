@@ -399,37 +399,25 @@ PyTypeObject _ContextType = {
 int
 Context_has_access(Context* pycx, JSContext* jscx, PyObject* obj, PyObject* key)
 {
-    PyObject* tpl = NULL;
-    PyObject* tmp = NULL;
-    int res = -1;
+    if(pycx->access == NULL) return 1;
 
-    if(pycx->access == NULL)
-    {
-        res = 1;
-        goto done;
-    }
-
-    tpl = Py_BuildValue("(OO)", obj, key);
-    if(tpl == NULL) goto done;
-
-    tmp = PyObject_Call(pycx->access, tpl, NULL);
-    res = PyObject_IsTrue(tmp);
-
-done:
-    Py_XDECREF(tpl);
-    Py_XDECREF(tmp);
-
-    if(res < 0)
+    PyObjectXDR tpl = Py_BuildValue("(OO)", obj, key);
+    if(!tpl)
     {
         PyErr_Clear();
-        JS_ReportError(jscx, "Failed to check python access.");
-    }
-    else if(res == 0)
-    {
-        JS_ReportError(jscx, "Python access prohibited.");
+        return -1;
     }
 
-    return res;
+    PyObjectXDR tmp = PyObject_Call(pycx->access, tpl.get(), NULL);
+    if(!tmp)
+    {
+        PyErr_Clear();
+        return -1;
+    }
+    
+    int ret = PyObject_IsTrue(tmp.get());
+    if(ret == 0) JS_ReportError(jscx, "Access denied.");
+    return ret;
 }
 
 PyObject*

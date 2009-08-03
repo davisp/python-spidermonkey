@@ -13,9 +13,8 @@ Function_dealloc(Function* self)
 {
     if(self->parent != JSVAL_VOID)
     {
-        JS_BeginRequest(self->obj.cx->cx);
+        JSRequest req(self->obj.cx->cx);
         JS_RemoveRoot(self->obj.cx->cx, &(self->parent));
-        JS_EndRequest(self->obj.cx->cx);
     }
 
     ObjectType->tp_dealloc((PyObject*) self);

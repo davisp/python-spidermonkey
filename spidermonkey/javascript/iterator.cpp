@@ -63,7 +63,7 @@ get_js_slot(JSContext* cx, JSObject* obj, int slot)
 void
 finalize(JSContext* jscx, JSObject* jsobj)
 {
-    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
     if(!pycx)
     {
         fprintf(stderr, "*** NO PYTHON CONTEXT ***\n");
@@ -74,7 +74,7 @@ finalize(JSContext* jscx, JSObject* jsobj)
 
     Py_DECREF(get_js_slot(jscx, jsobj, 0));
     Py_DECREF(get_js_slot(jscx, jsobj, 1));
-    Py_DECREF(pycx.get());
+    Py_DECREF(pycx);
 }
 
 JSBool
@@ -116,17 +116,17 @@ def_next(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
     JSObject* glbl = JS_GetGlobalObject(jscx);
     jsval exc = JSVAL_VOID;
     
-    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
     if(!pycx) return js_error(jscx, "Failed to get Python context.");
 
-    PyPtr<PyObject> iter = get_js_slot(jscx, jsobj, 1);
-    if(!PyIter_Check(iter.get()))
+    PyObject* iter = get_js_slot(jscx, jsobj, 1);
+    if(!PyIter_Check(iter))
         return js_error(jscx, "Object is not an iterator.");
     
-    PyPtr<PyObject> pyobj = get_js_slot(jscx, jsobj, 0);
+    PyObject* pyobj = get_js_slot(jscx, jsobj, 0);
     if(!pyobj) return js_error(jscx, "Failed to find iterated object.");
 
-    PyObjectXDR next = PyIter_Next(iter.get());
+    PyObjectXDR next = PyIter_Next(iter);
     if(!next && PyErr_Occurred())
         return js_error(jscx, "Failed to get iterator's next value.");
     
@@ -146,15 +146,15 @@ def_next(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
     if(!is_for_each(jscx, jsobj, &foreach))
         return js_error(jscx, "Failed to get iterator flag.");
 
-    if(PyMapping_Check(pyobj.get()) && foreach)
+    if(PyMapping_Check(pyobj) && foreach)
     {
-        PyObjectXDR value = PyObject_GetItem(pyobj.get(), next.get());
+        PyObjectXDR value = PyObject_GetItem(pyobj, next.get());
         if(!value) return js_error(jscx, "Failed to get value in 'for each'");
-        *rval = py2js(pycx.get(), value.get());
+        *rval = py2js(pycx, value.get());
     }
     else
     {
-        *rval = py2js(pycx.get(), next.get());
+        *rval = py2js(pycx, next.get());
     }
 
     if(*rval == JSVAL_VOID)
@@ -169,23 +169,23 @@ seq_next(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
     JSObject* glbl = JS_GetGlobalObject(jscx);
     jsval exc = JSVAL_VOID;
 
-    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
     if(!pycx) return js_error(jscx, "Failed to get Python context.");
     
-    PyPtr<PyObject> pyobj = get_js_slot(jscx, jsobj, 0);
+    PyObject* pyobj = get_js_slot(jscx, jsobj, 0);
     if(!pyobj) return js_error(jscx, "Failed to get iterated object.");
-    if(!PySequence_Check(pyobj.get()))
+    if(!PySequence_Check(pyobj))
         return js_error(jscx, "Object is not a sequence.");
 
-    long maxval = PyObject_Length(pyobj.get());
+    long maxval = PyObject_Length(pyobj);
     if(maxval < 0) return js_error(jscx, "Failed to get sequence length.");
 
-    PyPtr<PyObject> iter = get_js_slot(jscx, jsobj, 1);
+    PyObject* iter = get_js_slot(jscx, jsobj, 1);
     if(!iter) return js_error(jscx, "Failed to get iteration state.");
-    if(!PyInt_Check(iter.get()))
+    if(!PyInt_Check(iter))
         return js_error(jscx, "Invalid iteration state object.");
 
-    long currval = PyInt_AsLong(iter.get());
+    long currval = PyInt_AsLong(iter);
     if(currval == -1 && PyErr_Occurred())
         return js_error(jscx, "Failed to get iteration state value.");
 
@@ -207,7 +207,7 @@ seq_next(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
     if(!JS_SetReservedSlot(jscx, jsobj, 1, PRIVATE_TO_JSVAL(next.get())))
         return js_error(jscx, "Failed to store iterator value.");
     Py_INCREF(next.get());
-    Py_DECREF(iter.get());
+    Py_DECREF(iter);
 
     JSBool foreach;
     if(!is_for_each(jscx, jsobj, &foreach))
@@ -215,13 +215,13 @@ seq_next(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
 
     if(foreach)
     {
-        PyObjectXDR value = PyObject_GetItem(pyobj.get(), iter.get());
+        PyObjectXDR value = PyObject_GetItem(pyobj, iter);
         if(!value) return js_error(jscx, "Failed to get element in 'for each'");
-        *rval = py2js(pycx.get(), value.get());
+        *rval = py2js(pycx, value.get());
     }
     else
     {
-        *rval = py2js(pycx.get(), iter.get());
+        *rval = py2js(pycx, iter);
     }
 
     if(*rval == JSVAL_VOID)
@@ -271,7 +271,7 @@ new_py_def_iter(Context* cx, PyObject* obj, jsval* rval)
     *rval = OBJECT_TO_JSVAL(jsiter);
 
     // Keep attached alive on success.
-    attached.reset();
+    attached.release();
     return JS_TRUE;
 }
 

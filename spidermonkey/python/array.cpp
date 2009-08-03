@@ -11,75 +11,54 @@
 Py_ssize_t
 Array_length(Object* self)
 {
-    Py_ssize_t ret = -1;
+    JSRequest req(self->cx->cx);
+
     jsuint length;
-
-    JS_BeginRequest(self->cx->cx);
-
     if(!JS_GetArrayLength(self->cx->cx, self->obj, &length))
     {
         PyErr_SetString(PyExc_AttributeError, "Failed to get array length.");
-        goto done;
+        return -1;
     }
 
-     ret = (Py_ssize_t) length;
-    
-done:
-    JS_EndRequest(self->cx->cx);
-    return ret;
+    return (Py_ssize_t) length;
 }
 
 PyObject*
 Array_get_item(Object* self, Py_ssize_t idx)
 {
-    PyObject* ret = NULL;
-    jsval rval;
-    jsint pos = (jsint) idx;
-
-    JS_BeginRequest(self->cx->cx);
-
+    JSRequest req(self->cx->cx);
+    
     if(idx >= Array_length(self))
     {
         PyErr_SetString(PyExc_IndexError, "List index out of range.");
-        goto done;
+        return NULL;
     }
 
-    if(!JS_GetElement(self->cx->cx, self->obj, pos, &rval))
+    jsval rval;
+    if(!JS_GetElement(self->cx->cx, self->obj, (jsint) idx, &rval))
     {
         PyErr_SetString(PyExc_AttributeError, "Failed to get array item.");
-        goto done;
+        return NULL;
     }
 
-    ret = js2py(self->cx, rval);
-
-done:
-    JS_EndRequest(self->cx->cx);
-    return ret;
+    return js2py(self->cx, rval);
 }
 
 int
 Array_set_item(Object* self, Py_ssize_t idx, PyObject* val)
 {
-    int ret = -1;
-    jsval pval;
-    jsint pos = (jsint) idx;
+    JSRequest req(self->cx->cx);
+    
+    jsval pval = py2js(self->cx, val);
+    if(pval == JSVAL_VOID) return -1;
 
-    JS_BeginRequest(self->cx->cx);
-
-    pval = py2js(self->cx, val);
-    if(pval == JSVAL_VOID) goto done;
-
-    if(!JS_SetElement(self->cx->cx, self->obj, pos, &pval))
+    if(!JS_SetElement(self->cx->cx, self->obj, (jsint) idx, &pval))
     {
         PyErr_SetString(PyExc_AttributeError, "Failed to set array item.");
-        goto done;
+        return -1;
     }
 
-    ret = 0;
-
-done:
-    JS_EndRequest(self->cx->cx);
-    return ret;
+    return 0;
 }
 
 PyObject*

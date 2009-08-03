@@ -11,16 +11,9 @@
 PyObject*
 HashCObj_FromVoidPtr(void *cobj)
 {
-    HashCObj* self = NULL;
-
-    self = PyObject_NEW(HashCObj, HashCObjType);
-    if(self == NULL) goto error;
+    HashCObj* self = PyObject_NEW(HashCObj, HashCObjType);
+    if(self == NULL) return NULL;
     self->cobj = cobj;
-
-    goto success;
-
-error:
-success:
     return (PyObject*) self;
 }
 
@@ -38,37 +31,29 @@ HashCObj_cmp(PyObject* self, PyObject* other)
     if(!PyObject_TypeCheck(self, HashCObjType))
     {
         PyErr_SetString(PyExc_ValueError, "Invalid comparison object.");
-        goto error;
+        return -1;
     }
 
     if(!PyObject_TypeCheck(other, HashCObjType))
     {
         PyErr_SetString(PyExc_ValueError, "Invalid comparison object 2.");
-        goto error;
+        return -1;
     }
     
     if(((HashCObj*)self)->cobj == ((HashCObj*)other)->cobj)
-    {
-        ret = 0;
-    }
+        return 0;
     else
-    {
-        ret = 1;
-    }
-
-    goto success;
-
-error:
-success:
-    return ret;
+        return 1;
 }
 
 PyObject*
 HashCObj_repr(PyObject* self)
 {
-    return PyString_FromFormat("<%s Ptr: %p>",
-            self->ob_type->tp_name,
-            ((HashCObj*)self)->cobj);
+    return PyString_FromFormat(
+        "<%s Ptr: %p>",
+        self->ob_type->tp_name,
+        ((HashCObj*)self)->cobj
+    );
 }
 
 long

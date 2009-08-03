@@ -38,16 +38,16 @@ add_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 JSBool
 del_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
-    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
     if(!pycx) return js_error(jscx, "Failed to get Python context.");
 
     if(pycx->pyglobal == NULL) return JS_TRUE;
     if(!PyObject_HasAttrString(pycx->pyglobal, "__delitem__")) return JS_TRUE;
 
-    PyObjectXDR pykey = js2py(pycx.get(), key);
+    PyObjectXDR pykey = js2py(pycx, key);
     if(!pykey) return js_error(jscx, "Failed to covert key.");
 
-    if(Context_has_access(pycx.get(), jscx, pycx->pyglobal, pykey.get()) <= 0)
+    if(Context_has_access(pycx, jscx, pycx->pyglobal, pykey.get()) <= 0)
         return js_error(jscx, "Access denied.");
     
     if(PyObject_DelItem(pycx->pyglobal, pykey.get()) < 0)
@@ -59,15 +59,15 @@ del_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 JSBool
 get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
-    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
     if(!pycx) return js_error(jscx, "Failed to get Python context.");
     
     if(pycx->pyglobal == NULL) return JS_TRUE;
     
-    PyObjectXDR pykey = js2py(pycx.get(), key);
+    PyObjectXDR pykey = js2py(pycx, key);
     if(!pykey) return js_error(jscx, "Failed to convert key.");
     
-    if(Context_has_access(pycx.get(), jscx, pycx->pyglobal, pykey.get()) <= 0)
+    if(Context_has_access(pycx, jscx, pycx->pyglobal, pykey.get()) <= 0)
         return js_error(jscx, "Access denied.");
 
     PyObjectXDR pyval = PyObject_GetItem(pycx->pyglobal, pykey.get());
@@ -81,7 +81,7 @@ get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
         return js_error(jscx, "Failed to get value.");
     }
 
-    *rval = py2js(pycx.get(), pyval.get());
+    *rval = py2js(pycx, pyval.get());
     if(*rval == JSVAL_VOID)
         return js_error(jscx, "Failed to convert value.");
     
@@ -91,18 +91,18 @@ get_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 JSBool
 set_prop(JSContext* jscx, JSObject* jsobj, jsval key, jsval* rval)
 {
-    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
     if(!pycx) return js_error(jscx, "Failed to get Python context.");
     
     if(pycx->pyglobal == NULL) return JS_TRUE;
 
-    PyObjectXDR pykey = js2py(pycx.get(), key);
+    PyObjectXDR pykey = js2py(pycx, key);
     if(!pykey) return js_error(jscx, "Failed to convert key.");
 
-    if(Context_has_access(pycx.get(), jscx, pycx->pyglobal, pykey.get()) <= 0)
+    if(Context_has_access(pycx, jscx, pycx->pyglobal, pykey.get()) <= 0)
         return js_error(jscx, "Access denied.");
 
-    PyObjectXDR pyval = js2py(pycx.get(), *rval);
+    PyObjectXDR pyval = js2py(pycx, *rval);
     if(!pyval) return js_error(jscx, "Failed to convert value.");
 
     if(PyObject_SetItem(pycx->pyglobal, pykey.get(), pyval.get()) < 0)
@@ -116,15 +116,15 @@ resolve(JSContext* jscx, JSObject* jsobj, jsval key)
 {
     jsid pid;
 
-    PyPtr<Context> pycx = (Context*) JS_GetContextPrivate(jscx);
+    Context* pycx = (Context*) JS_GetContextPrivate(jscx);
     if(!pycx) return js_error(jscx, "Failed to get Python context.");
 
     if(pycx->pyglobal == NULL) return JS_TRUE;
     
-    PyObjectXDR pykey = js2py(pycx.get(), key);
+    PyObjectXDR pykey = js2py(pycx, key);
     if(!pykey) return js_error(jscx, "Failed to convert key.");
     
-    if(Context_has_access(pycx.get(), jscx, pycx->pyglobal, pykey.get()) <= 0)
+    if(Context_has_access(pycx, jscx, pycx->pyglobal, pykey.get()) <= 0)
         return js_error(jscx, "Access denied.");
 
     if(!PyMapping_HasKey(pycx->pyglobal, pykey.get())) return JS_TRUE;

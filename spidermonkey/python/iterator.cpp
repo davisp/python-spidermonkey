@@ -9,45 +9,6 @@
 #include <spidermonkey.h>
 
 PyObject*
-Iterator_Wrap(Context* cx, JSObject* obj)
-{
-    Iterator* self = NULL;
-    PyObject* tpl = NULL;
-    PyObject* ret = NULL;
-
-    JS_BeginRequest(cx->cx);
-
-    // Build our new python object.
-    tpl = Py_BuildValue("(O)", cx);
-    if(tpl == NULL) goto error;
-    
-    self = (Iterator*) PyObject_CallObject((PyObject*) IteratorType, tpl);
-    if(self == NULL) goto error;
-    
-    // Attach a JS property iterator.
-    self->iter = JS_NewPropertyIterator(cx->cx, obj);
-    if(self->iter == NULL) goto error;
-
-    self->root = OBJECT_TO_JSVAL(self->iter);
-    if(!JS_AddRoot(cx->cx, &(self->root)))
-    {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to set GC root.");
-        goto error;
-    }
-
-    ret = (PyObject*) self;
-    goto success;
-
-error:
-    Py_XDECREF(self);
-    ret = NULL; // In case it was AddRoot
-success:
-    Py_XDECREF(tpl);
-    JS_EndRequest(cx->cx);
-    return (PyObject*) ret;
-}
-
-PyObject*
 Iterator_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 {
     Context* cx = NULL;
@@ -172,3 +133,42 @@ PyTypeObject _IteratorType = {
     0,                                          /*tp_alloc*/
     Iterator_new,                               /*tp_new*/
 };
+
+PyObject*
+Iterator_Wrap(Context* cx, JSObject* obj)
+{
+    Iterator* self = NULL;
+    PyObject* tpl = NULL;
+    PyObject* ret = NULL;
+
+    JS_BeginRequest(cx->cx);
+
+    // Build our new python object.
+    tpl = Py_BuildValue("(O)", cx);
+    if(tpl == NULL) goto error;
+    
+    self = (Iterator*) PyObject_CallObject((PyObject*) IteratorType, tpl);
+    if(self == NULL) goto error;
+    
+    // Attach a JS property iterator.
+    self->iter = JS_NewPropertyIterator(cx->cx, obj);
+    if(self->iter == NULL) goto error;
+
+    self->root = OBJECT_TO_JSVAL(self->iter);
+    if(!JS_AddRoot(cx->cx, &(self->root)))
+    {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to set GC root.");
+        goto error;
+    }
+
+    ret = (PyObject*) self;
+    goto success;
+
+error:
+    Py_XDECREF(self);
+    ret = NULL; // In case it was AddRoot
+success:
+    Py_XDECREF(tpl);
+    JS_EndRequest(cx->cx);
+    return (PyObject*) ret;
+}

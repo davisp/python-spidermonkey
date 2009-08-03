@@ -30,34 +30,21 @@ py2js_integer(Context* cx, PyObject* obj)
 jsval
 long2js_integer(Context* cx, long pyval)
 {
-    jsval ret = JSVAL_VOID;
-
-    if(INT_FITS_IN_JSVAL(pyval))
-    {
-        ret = INT_TO_JSVAL(pyval);
-        goto done;
-    }
+    if(INT_FITS_IN_JSVAL(pyval)) return INT_TO_JSVAL(pyval);
     
-    if(!JS_NewNumberValue(cx->cx, pyval, &ret))
-    {
-        PyErr_SetString(PyExc_ValueError, "Failed to convert number.");
-        goto done;
-    }
-
-done:
-    return ret;
+    jsval ret;
+    if(JS_NewNumberValue(cx->cx, pyval, &ret)) return ret;
+    
+    PyErr_SetString(PyExc_ValueError, "Failed to convert number.");
+    return JSVAL_VOID;
 }
 
 PyObject*
 js2py_integer(Context* cx, jsval val)
 {
-    int32 rval;
+    int32 ret;
+    if(JS_ValueToInt32(cx->cx, val, &ret)) return PyInt_FromLong(ret);
 
-    if(!JS_ValueToInt32(cx->cx, val, &rval))
-    {
-        PyErr_SetString(PyExc_TypeError, "Invalid JS integer value.");
-        return NULL;
-    }
-
-    return PyInt_FromLong(rval);
+    PyErr_SetString(PyExc_TypeError, "Invalid JS integer value.");
+    return NULL;
 }
