@@ -52,9 +52,11 @@ template <class T> class PyXDR {
             this->data = p;
         }
         
-        void release()
+        T* release()
         {
+            T* p = this->data;
             this->data = NULL;
+            return p;
         }
 
     protected:

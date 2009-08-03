@@ -304,27 +304,19 @@ get_py_obj(JSContext* cx, JSObject* obj)
 PyObject*
 mk_args_tpl(Context* pycx, JSContext* jscx, uintN argc, jsval* argv)
 {
-    PyObject* tpl = NULL;
-    PyObject* tmp = NULL;
-    
-    tpl = PyTuple_New(argc);
-    if(tpl == NULL)
+    PyObjectXDR tpl = PyTuple_New(argc);
+    if(!tpl)
     {
         JS_ReportError(jscx, "Failed to build args value.");
-        goto error;
+        return NULL;
     }
     
     for(unsigned int idx = 0; idx < argc; idx++)
     {
-        tmp = js2py(pycx, argv[idx]);
-        if(tmp == NULL) goto error;
-        PyTuple_SET_ITEM(tpl, idx, tmp);
+        PyObject* tmp = js2py(pycx, argv[idx]);
+        if(!tmp) return NULL;
+        PyTuple_SET_ITEM(tpl.get(), idx, tmp);
     }
 
-    goto success;
-
-error:
-    Py_XDECREF(tpl);
-success:
-    return tpl;
+    return tpl.release();
 }
