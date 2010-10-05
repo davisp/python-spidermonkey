@@ -75,6 +75,14 @@ success:
 void
 report_error_cb(JSContext* cx, const char* message, JSErrorReport* report)
 {
+    /* Subtle note about JSREPORT_EXCEPTION: it triggers whenever exceptions
+     * are raised, even if they're caught and the Mozilla docs say you can
+     * ignore it.
+     */
+    /* TODO What should we do about warnings? A callback somehow? */
+    if (report->flags & JSREPORT_WARNING)
+        return;
+
     const char* srcfile = report->filename;
     const char* mesg = message;
 
