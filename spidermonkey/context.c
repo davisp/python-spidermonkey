@@ -288,20 +288,24 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
     Runtime* runtime = NULL;
     PyObject* global = NULL;
     PyObject* access = NULL;
+    int strict = 0;
+    uint32_t jsopts;
 
-    char* keywords[] = {"runtime", "glbl", "access", NULL};
+    char* keywords[] = {"runtime", "glbl", "access", "strict", NULL};
 
     if(!PyArg_ParseTupleAndKeywords(
         args, kwargs,
-        "O!|OO",
+        "O!|OOI",
         keywords,
         RuntimeType, &runtime,
         &global,
-        &access
+        &access,
+        &strict
     )) goto error;
 
     if(global == Py_None) global = NULL;
     if(access == Py_None) access = NULL;
+    strict &= 1;  /* clamp at 1 */
 
     if(global != NULL && !PyMapping_Check(global))
     {
@@ -378,6 +382,15 @@ Context_new(PyTypeObject* type, PyObject* args, PyObject* kwargs)
 
     JS_SetBranchCallback(self->cx, branch_cb);
     JS_SetErrorReporter(self->cx, report_error_cb);
+
+    jsopts = JS_GetOptions(self->cx);
+    jsopts |= JSOPTION_VAROBJFIX;
+    if (strict) {
+        jsopts |= JSOPTION_STRICT;
+    } else {
+        jsopts &= ~JSOPTION_STRICT;
+    }
+    JS_SetOptions(self->cx, jsopts);
     
     Py_INCREF(runtime);
     self->rt = runtime;
