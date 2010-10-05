@@ -78,13 +78,13 @@ report_error_cb(JSContext* cx, const char* message, JSErrorReport* report)
     const char* srcfile = report->filename;
     const char* mesg = message;
 
+    if(srcfile == NULL) srcfile = "<JavaScript>";
+    if(mesg == NULL) mesg = "Unknown JavaScript execution error";
+
     if(!PyErr_Occurred())
     {
-        PyErr_SetString(JSError, "Error executing JavaScript.");
+        PyErr_SetString(JSError, message);
     }
 
-    if(srcfile == NULL) srcfile = "<JavaScript>";
-    if(mesg == NULL) mesg = "<Unknown Error>";
-    
-    add_frame(srcfile, mesg, report->lineno);
+    add_frame(srcfile, "JavaScript code", report->lineno);
 }

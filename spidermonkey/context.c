@@ -546,11 +546,18 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
     JSString* script = NULL;
     jschar* schars = NULL;
     JSBool started_counter = JS_FALSE;
+    char *fname = "<anonymous JavaScript>";
+    unsigned int lineno = 1;
     size_t slen;
     jsval rval;
 
+    char *keywords[] = {"code", "filename", "lineno", NULL};
+
+    if(!PyArg_ParseTupleAndKeywords(args, kwargs, "O|sI", keywords,
+                                    &obj, &fname, &lineno))
+        goto error;
+
     JS_BeginRequest(self->cx);
-    if(!PyArg_ParseTuple(args, "O", &obj)) goto error;
     
     script = py2js_string_obj(self, obj);
     if(script == NULL) goto error;
@@ -568,11 +575,11 @@ Context_execute(Context* self, PyObject* args, PyObject* kwargs)
         self->start_time = time(NULL);
     }
 
-    if(!JS_EvaluateUCScript(cx, root, schars, slen, "<JavaScript>", 1, &rval))
+    if(!JS_EvaluateUCScript(cx, root, schars, slen, fname, lineno, &rval))
     {
         if(!PyErr_Occurred())
         {
-            PyErr_SetString(PyExc_RuntimeError, "Failed to execute script.");
+            PyErr_SetString(PyExc_RuntimeError, "Script execution failed and no exception was set");
         }
         goto error;
     }
@@ -666,7 +673,7 @@ static PyMethodDef Context_methods[] = {
     {
         "execute",
         (PyCFunction)Context_execute,
-        METH_VARARGS,
+        METH_VARARGS | METH_KEYWORDS,
         "Execute JavaScript source code."
     },
     {
