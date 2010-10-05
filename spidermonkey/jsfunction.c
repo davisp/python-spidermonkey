@@ -101,7 +101,9 @@ Function_call(Function* self, PyObject* args, PyObject* kwargs)
 
     if(!JS_CallFunctionValue(cx, parent, func, argc, argv, &rval))
     {
-        PyErr_SetString(PyExc_RuntimeError, "Failed to execute JS Function.");
+        if(!PyErr_Occurred()) {
+            PyErr_SetString(PyExc_RuntimeError, "JavaScript Function failed to execute");
+        }
         goto error;
     }
 
