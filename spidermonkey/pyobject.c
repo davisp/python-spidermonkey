@@ -276,7 +276,7 @@ js_call(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
     
     if(!PyCallable_Check(pyobj))
     {
-        JS_ReportError(jscx, "Object is not callable.");
+        JS_ReportError(jscx, "Object not callable, unable to apply");
         goto error;
     }
 
@@ -339,7 +339,7 @@ js_ctor(JSContext* jscx, JSObject* jsobj, uintN argc, jsval* argv, jsval* rval)
     
     if(!PyCallable_Check(pyobj))
     {
-        JS_ReportError(jscx, "Object is not callable.");
+        JS_ReportError(jscx, "Object not callable, unable to construct");
         goto error;
     }
 
