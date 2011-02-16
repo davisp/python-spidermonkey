@@ -1,0 +1,12 @@
+prefix=/usr/local/
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: nspr
+Description: nspr library
+Version: 4.8.6
+Requires:
+Conflicts:
+Libs: -L${libdir} -lplds4 -lplc4 -lnspr4
+Cflags: -I${includedir}/nspr
